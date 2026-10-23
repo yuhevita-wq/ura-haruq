@@ -1,0 +1,21 @@
+# Secrets and local credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Historical race database and encrypted archives
+*.sqlite
+*.sqlite3
+*.db
+*.gpg
+private_data/
+training_inputs/
+
+# Model training outputs and Python caches
+model_artifacts/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/

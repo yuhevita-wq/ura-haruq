@@ -1,0 +1,32 @@
+name: Verify URA-HARUQ AI
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ura/**"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/ura-verify.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+      - name: Test URA model implementation
+        run: python -m unittest discover -s tests -v
+      - name: Test unchanged March 21 baseline files
+        run: |
+          test "$(git hash-object config.py)" = 011c2091816d16358dfe478726bcb0ff2bc74bf9
+          test "$(git hash-object features/builder.py)" = b47b793b5cf763bcb6d05137a115105006e50eba
+          test "$(git hash-object features/line_features.py)" = ecf3ab7c762475946054f806bb1d4b802c889389
+          python -m py_compile ura/core.py ura/train.py ura/predict.py

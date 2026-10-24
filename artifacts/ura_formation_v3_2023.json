@@ -1,0 +1,181 @@
+{
+  "system": "URA_FORMATION_V3_2023_LEARNED_FIXED_RESEARCH",
+  "artifact_version": "v3.0.0",
+  "status": "TRAINED_NOT_PROFITABLE_ON_2025",
+  "source_training_run_url": "https://github.com/yuhevita-wq/ura-haruq/actions/runs/40056803172",
+  "source_full_model_artifact_name": "ura-v3-2023-founded-formation-learning",
+  "source_full_model_json_sha256": "7b2369358b8a6b629ce75e29c251ed974715e9539e64bd6dd51d532dcfc26a59",
+  "frozen_original_haruq_sha256": "e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193",
+  "frozen_ura_git_blob_sha1": "5a353643cfe8196ab695521d479237294c3f9b66",
+  "original_and_ura_coefficients_updated": false,
+  "selection_procedure": "2023 rank-formation discovery, 2024 positive incremental ROI+support screening, 2025 frozen out-of-selection period evaluation",
+  "normalized_rank_bin": "bin = 1 + floor(7*(predicted_rank - 1)/field_size); field_size 7 to 9",
+  "universe": "sequential 3-finisher placements using 7 normalized prediction-rank bins",
+  "candidate_count": 21952,
+  "complete_matched_low_races": {
+    "2023": 6565,
+    "2024": 6468,
+    "2025": 6507
+  },
+  "trained_shape_count": 5,
+  "trained_shapes": [
+    {
+      "id": "V3_1",
+      "rank_bin_intervals_1indexed": [
+        [
+          7,
+          7
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          4,
+          4
+        ]
+      ],
+      "training_incremental_roi_2023": 117.9613,
+      "screening_incremental_roi_2024": 103.8352,
+      "training_hits_2023": 5,
+      "screening_hits_2024": 8,
+      "training_incremental_avg_points": 1.2271
+    },
+    {
+      "id": "V3_2",
+      "rank_bin_intervals_1indexed": [
+        [
+          1,
+          1
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "training_incremental_roi_2023": 127.2096,
+      "screening_incremental_roi_2024": 102.5867,
+      "training_hits_2023": 21,
+      "screening_hits_2024": 26,
+      "training_incremental_avg_points": 1.2392
+    },
+    {
+      "id": "V3_3",
+      "rank_bin_intervals_1indexed": [
+        [
+          1,
+          1
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          2,
+          2
+        ]
+      ],
+      "training_incremental_roi_2023": 102.2752,
+      "screening_incremental_roi_2024": 105.4592,
+      "training_hits_2023": 253,
+      "screening_hits_2024": 282,
+      "training_incremental_avg_points": 4.1718
+    },
+    {
+      "id": "V3_4",
+      "rank_bin_intervals_1indexed": [
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          6,
+          6
+        ]
+      ],
+      "training_incremental_roi_2023": 101.2232,
+      "screening_incremental_roi_2024": 104.0074,
+      "training_hits_2023": 22,
+      "screening_hits_2024": 31,
+      "training_incremental_avg_points": 1
+    },
+    {
+      "id": "V3_5",
+      "rank_bin_intervals_1indexed": [
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          4,
+          5
+        ]
+      ],
+      "training_incremental_roi_2023": 100.2727,
+      "screening_incremental_roi_2024": 105.2199,
+      "training_hits_2023": 175,
+      "screening_hits_2024": 194,
+      "training_incremental_avg_points": 1.411
+    }
+  ],
+  "combined_performance": {
+    "2023": {
+      "races": 6565,
+      "tickets": 59670,
+      "hits": 476,
+      "investment_yen": 5967000,
+      "payout_yen": 6407090,
+      "roi_percent": 107.3754,
+      "bootstrap95": [
+        77.7,
+        145.51
+      ]
+    },
+    "2024": {
+      "races": 6468,
+      "tickets": 58272,
+      "hits": 541,
+      "investment_yen": 5827200,
+      "payout_yen": 6097950,
+      "roi_percent": 104.6463,
+      "bootstrap95": [
+        83.69,
+        128.89
+      ]
+    },
+    "2025": {
+      "races": 6507,
+      "tickets": 59820,
+      "hits": 446,
+      "investment_yen": 5982000,
+      "payout_yen": 5180450,
+      "roi_percent": 86.6006,
+      "bootstrap95": [
+        65.54,
+        111.06
+      ]
+    }
+  },
+  "warnings": [
+    "Do not substitute normalized bin IDs for physical bike numbers or exact rider ranks (bins repeat for fields 8 and 9).",
+    "Race-winning combo was not passed into inference; only used to score research labels. Models were fit/selected before 2025 V3 evaluation.",
+    "Historical original HaruQ ranker may have trained on these years and incorporates as-of unverified class, odds, popularity, or weather. 2025 not fully project-unseen.",
+    "Settlements calculated at official payouts, final odds not known at time of wagering.",
+    "Selection of 21,952 interval shapes and two-year profitable screening induces selection optimism.",
+    "Purchase not approved; all previously frozen models and V1/V2 shape catalog remain unchanged."
+  ],
+  "research_only": true,
+  "purchase_approved": false
+}

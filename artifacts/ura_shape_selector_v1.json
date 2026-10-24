@@ -1,0 +1,144 @@
+{
+  "stage_two_version": "URA_SHAPE_SELECTOR_V1",
+  "frozen_ura_git_blob": "5a353643cfe8196ab695521d479237294c3f9b66",
+  "base_model_sha256": "e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193",
+  "base_stage_reestimated": false,
+  "training_dataset_sha256": "690579f3a381b406416042d3e548a164b6bbd3d2438cf70f53fd79f25cfe56f4",
+  "training_data": "2026-06 frozen 422 race predictions; same source used earlier in research",
+  "training_split": {
+    "end_inclusive": "2026-06-15",
+    "races": 242
+  },
+  "temporal_comparison": {
+    "start_inclusive": "2026-06-16",
+    "races": 180,
+    "already_seen_by_researchers": true
+  },
+  "features": [
+    "logit_baseline_mass",
+    "gap",
+    "field_centered"
+  ],
+  "selector_objective": "maximize smoothed P(actual outcome in formation) / unique point count",
+  "coefficient_regularization_C": 0.5,
+  "type_models": {
+    "1": {
+      "weights": [
+        -0.16311815001952423,
+        0.16200151339383448,
+        0.007139326776439656
+      ],
+      "intercept": -3.5884091484672327,
+      "training_hits": 11,
+      "train_races": 242
+    },
+    "2": {
+      "weights": [
+        0.2933468667852156,
+        0.10653613417164556,
+        -0.23693226413454951
+      ],
+      "intercept": -2.1956980237511687,
+      "training_hits": 10,
+      "train_races": 242
+    },
+    "3": {
+      "weights": [
+        0.01384211279922051,
+        0.5084607746551816,
+        -0.4132695920389133
+      ],
+      "intercept": -3.3167110208971797,
+      "training_hits": 9,
+      "train_races": 242
+    },
+    "4": {
+      "weights": [
+        0.17843586096167566,
+        -0.036107692525830744,
+        -0.3275284195064126
+      ],
+      "intercept": -2.184938549581199,
+      "training_hits": 14,
+      "train_races": 242
+    },
+    "5": {
+      "weights": [
+        -0.014491110870564835,
+        0.03370029001771801,
+        0.11218529514321439
+      ],
+      "intercept": -4.949748767912017,
+      "training_hits": 2,
+      "train_races": 242
+    },
+    "6": {
+      "weights": [
+        0.5863953108898222,
+        0.24691098875248277,
+        -0.16070904411533118
+      ],
+      "intercept": -1.3231867514725666,
+      "training_hits": 15,
+      "train_races": 242
+    }
+  },
+  "types": [
+    {
+      "id": 1,
+      "name": "下位逆転",
+      "positions": [
+        "tail",
+        "top1",
+        "mid2_5"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "本命3着回帰",
+      "positions": [
+        "tail",
+        "mid2_5",
+        "top1"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "下位2着割り込み",
+      "positions": [
+        "rank2_4",
+        "tail",
+        "top1"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "下位3着侵入",
+      "positions": [
+        "top1_2",
+        "rank3_4",
+        "tail"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "大穴の2・3着同居",
+      "positions": [
+        "rank3_5",
+        "tail_last2",
+        "last"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "本命頭・下位2着",
+      "positions": [
+        "top1",
+        "tail",
+        "mid2_5"
+      ]
+    }
+  ],
+  "purchase_approved": false,
+  "warning": "Exploratory historical formation learning only; final odds, known June outcomes, and original input feature timing make ROI non-tradable. No genuine independent forward validation."
+}

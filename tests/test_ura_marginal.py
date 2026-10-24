@@ -44,6 +44,13 @@ class MarginalLearningTests(unittest.TestCase):
         self.assertLessEqual(a["best_within_scenario"]["points"],16)
         self.assertTrue(a["no_outcomes_or_payouts_are_model_inputs"])
 
+    def test_already_selected_type_is_never_discarded(self):
+        out=analyze(self.source,self.ura,self.shape,self.marginal,(1,),max_types=3,max_points=24)
+        self.assertTrue(all(1 in z["types"] for z in out["pareto_frontier"]))
+        if out["best_within_scenario"]:
+            self.assertIn(1,out["best_within_scenario"]["types"])
+        self.assertEqual(out["already_selected"],[1])
+
     def test_five_six_rejected_due_to_overlap(self):
         for n in (5,6):
             source={"race_id":"test","model_sha256":FIXED_HARUQ_SHA256,

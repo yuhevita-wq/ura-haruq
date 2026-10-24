@@ -1,0 +1,51 @@
+{
+  "system": "URA_HARUQ_FROZEN_ODDS_ROI_AUDIT_V1",
+  "result_status": "completed",
+  "frozen_ura_git_blob_sha": "5a353643cfe8196ab695521d479237294c3f9b66",
+  "frozen_source_model_sha256": "e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193",
+  "coefficient_reestimated": false,
+  "date_range": "2026-06-01..2026-06-30",
+  "not_used_to_fit_ura_coefficients": true,
+  "previously_used_for_logloss_holdout": true,
+  "odds_phase": "final - not documented as pre-deadline snapshots",
+  "ticket_type": "3連単",
+  "rule": "LOW gap<1.0; any lower-ranked rider in finishing positions 1-3; buy every candidate with p*final_odds>1.0; 100 yen each; no post-outcome selection",
+  "archive_coverage": {
+    "archived_june_races": 621,
+    "invalid_id": 4,
+    "quarantined_races": 0,
+    "unique_unambiguous_june_races": 621
+  },
+  "join_audit": {
+    "odds_races": 621,
+    "scored_complete_races": 513,
+    "eligible_low_races": 422,
+    "races_with_positive_ev": 422,
+    "high_confidence_excluded": 91,
+    "roster_count_mismatch": 38,
+    "not_in_history_db": 65,
+    "invalid_or_unfinished_result": 5
+  },
+  "evaluated_races_with_official_settlement": 422,
+  "tickets": 55589,
+  "hits": 38,
+  "hit_rate_per_ticket": 0.0006836,
+  "investment_yen": 5558900,
+  "actual_return_yen": 2570890,
+  "actual_profit_yen": -2988010,
+  "actual_roi_percent": 46.2482,
+  "theoretical_expected_roi_percent": 294.0505,
+  "bootstrap_1000": {
+    "ci95_roi_percent": [
+      27.46,
+      65.54
+    ]
+  },
+  "limitations": [
+    "Archived odds are FINAL prices, not timestamped pre-deadline tradable quotes.",
+    "The held-out June results were included in the prior numerical holdout audit; ROI rule here is fixed before seeing these June settlements, but independence beyond all earlier examination is not established.",
+    "Current historical entries, rider master class and weather may not reconstruct exact start-time features; no profitable live-trading claim permitted.",
+    "No price was imputed, incomplete odds books or missing official settlements were excluded."
+  ],
+  "purchase_approved": false
+}

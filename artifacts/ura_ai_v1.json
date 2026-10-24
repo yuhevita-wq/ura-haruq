@@ -1,0 +1,62 @@
+{
+  "system": "URA_HARUQ_INDEPENDENT_AI_V1",
+  "training_completed": true,
+  "trained_on_real_results": true,
+  "source_frozen_model_sha256": "e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193",
+  "original_model_modified": false,
+  "source_code_modified": false,
+  "policy": "LOW confidence gap < 1.0 AND at least one lower-rank rider in the ticket",
+  "low_rank_definition": "Ranks 5-7 for 7 riders, ranks 6-9 for 9 riders",
+  "date_ranges": {
+    "start": "2025-07-01",
+    "train_end_exclusive": "2026-04-01",
+    "validation_end_exclusive": "2026-06-01",
+    "holdout_end_exclusive": "2026-10-01"
+  },
+  "features": [
+    "zscore",
+    "gap_times_zscore",
+    "rank_fraction",
+    "low_rank",
+    "gap_times_low_rank"
+  ],
+  "parameters": [
+    0.8055826770335849,
+    0.009678279151871833,
+    0.04487930508376407,
+    0.05356371346249142,
+    -0.021680603724710163
+  ],
+  "sample_counts": {
+    "training": 12163,
+    "validation": 2537,
+    "holdout": 5505
+  },
+  "source_data_audit": {
+    "source_complete_races": 91489,
+    "after_date_and_gender_filter": 30162,
+    "excluded_girls_races": 0
+  },
+  "all_qualified_races": 30162,
+  "low_confidence_races": 20205,
+  "rejected_races": 0,
+  "train": {
+    "races": 12163,
+    "nll": 4.6809927,
+    "untrained_reference_nll": 4.7343204
+  },
+  "validation": {
+    "races": 2537,
+    "nll": 4.6399658,
+    "untrained_reference_nll": 4.6850011
+  },
+  "holdout": {
+    "races": 5505,
+    "nll": 4.6497945,
+    "untrained_reference_nll": 4.6941274
+  },
+  "holdout_actual_lower_rider_in_top3": 3255,
+  "holdout_lower_rider_top3_share": 0.591281,
+  "warning": "No pre-race full trifecta odds in this pipeline. Profitability, expected value and live feature parity are NOT verified. Historical builder uses race_results odds/popularity; verify pre-start availability before claiming deployable predictive performance.",
+  "purchase_approved": false
+}

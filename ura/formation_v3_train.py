@@ -12,6 +12,7 @@ from collections import Counter,defaultdict
 from pathlib import Path
 import numpy as np
 from ura.formation_selector import rank_tickets
+from ura.core import low_rank_start
 
 PER_YEN=100
 TRAIN=2023
@@ -49,8 +50,10 @@ def read_year(input_dir,year):
 def odds_lattice(n):
     matrix=np.zeros((7,7,7),float)
     for p in itertools.permutations(range(1,n+1),3):
-        matrix[key3(p,n)]+=1.
-    assert abs(matrix.sum()-n*(n-1)*(n-2))<1e-9
+        if any(rank>=low_rank_start(n) for rank in p):
+            matrix[key3(p,n)]+=1.
+    top=low_rank_start(n)-1
+    assert abs(matrix.sum()-(n*(n-1)*(n-2)-top*(top-1)*(top-2)))<1e-9
     return matrix
 
 LATTICES={n:odds_lattice(n) for n in (7,8,9)}
@@ -62,6 +65,8 @@ def group_matrices(rows):
     cnt=Counter(z["n"] for z in rows)
     for n,k in cnt.items():cost+=LATTICES[n]*k*PER_YEN
     for r in rows:
+        if not any(v>=low_rank_start(r["n"]) for v in r["winner_ranks"]):
+            continue   # Original URA policy: exclude tickets with no lower-rated riders
         slot=r["winning_bin"]
         payout[slot]+=r["payout"]
         hit[slot]+=1
@@ -167,7 +172,7 @@ def evaluate_masks(rows,mask):
     for z in rows:
         n=z["n"]
         points=int(np.sum(LATTICES[n]*mask))
-        hit=bool(mask[z["winning_bin"]])
+        hit=bool(mask[z["winning_bin"]]) and any(v>=low_rank_start(n) for v in z["winner_ranks"])
         stake=100*points;ret=z["payout"] if hit else 0
         ledger.append({"race_id":z["race_id"],"date":z["date"],"year":z["year"],
                        "n":n,"actual_rank":"-".join(map(str,z["winner_ranks"])),
@@ -200,7 +205,8 @@ def main_train(source,out):
     meta={"system":"URA_FORMATION_V3_2023_START_RESEARCH",
           "research_only":True,"purchase_approved":False,
           "selection_protocol":"2023 discover; 2024 choose disjoint incremental ROI >100% with at least 5 hits in each year, 1-24 average new points; 2025 evaluate without label access until after selection",
-          "type_formation_family":"axis-aligned cuboids over 7-bin normalized URA probability rank triplets",
+          "type_formation_family":"axis-aligned cuboids over 7-bin normalized URA probability rank triplets, every ticket must include at least one original-URA lower-ranked rider", 
+          "lower_rank_eligibility_enforced":True,
           "rank_to_bin_formula":"1 + floor(7*(rank-1)/field_size)",
           "candidate_count":21952,
           "rows_by_year":{str(yr):len(rows) for yr,rows in per_year.items()},
@@ -210,7 +216,8 @@ def main_train(source,out):
           "original_model_sha256":"e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193",
           "frozen_ura_git_blob":"5a353643cfe8196ab695521d479237294c3f9b66",
           "comparison":comparisons,
-          "warnings":["Original HaruQ was originally trained with historic outcomes including possibly 2023-2025; its reproduced rank is not genuine walk-forward.",
+          "warnings":["Each candidate and all three annual ROI calculations strictly exclude 3連単 tickets with no lower-ranked riders as defined by fixed URA.",
+                      "Original HaruQ was originally trained with historic outcomes including possibly 2023-2025; its reproduced rank is not genuine walk-forward. (Audit required)",
                       "Original reconstructed pre-race features may include final odds/weather, current rider class or popularity; as-of audit pending.",
                       "Final odds cannot be assumed available at purchase deadline.",
                       "Mass candidate search creates multiple-testing risk even after temporal validation.",

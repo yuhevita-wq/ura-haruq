@@ -11,7 +11,7 @@ from pathlib import Path
 from ura.formation_selector import choose, load_fixed, FIXED_HARUQ_SHA256
 
 
-def combine_types(single_type_output, max_types=2, max_unique_points=None):
+def combine_types(single_type_output, max_types=2, max_unique_points=None, min_marginal_capture_per_point=0.0):
     """Greedily combine 1..6 learned formation types by marginal capture per unique point.
 
     Each individual type's calibrated capture probability comes from a previously
@@ -24,6 +24,8 @@ def combine_types(single_type_output, max_types=2, max_unique_points=None):
     if max_unique_points is not None and (
             type(max_unique_points) is not int or max_unique_points < 1):
         raise ValueError("max_unique_points must be a positive integer or None")
+    if not 0 <= float(min_marginal_capture_per_point) <= 1:
+        raise ValueError("Marginal threshold must be between 0 and 1")
     if single_type_output.get("selected_type") is None:
         return {**single_type_output, "system":"URA_HARUQ_MULTI_TYPE_RESEARCH_V1",
                 "selected_types":[], "selected_type_ids":[],
@@ -56,6 +58,8 @@ def combine_types(single_type_output, max_types=2, max_unique_points=None):
             # This does not claim a calibrated portfolio probability.
             heuristic_marginal=pred * len(newly)/len(current)
             priority=heuristic_marginal/len(newly)
+            if priority < min_marginal_capture_per_point:
+                continue
             offers.append((priority,heuristic_marginal,-len(newly),-t["type_id"],t,newly))
         if not offers:
             break
@@ -83,6 +87,7 @@ def combine_types(single_type_output, max_types=2, max_unique_points=None):
         "available_types":len(candidates),
         "max_types":max_types,
         "max_unique_points":max_unique_points,
+        "min_marginal_capture_per_point":float(min_marginal_capture_per_point),
         "no_outcome_or_odds_used_to_select":True,
         "stage_one_fixed":True,
         "stage_two_one_type_models_fixed":True,
@@ -92,12 +97,13 @@ def combine_types(single_type_output, max_types=2, max_unique_points=None):
     }
 
 
-def analyze(source, ura, shape, max_types=2, max_unique_points=None):
+def analyze(source, ura, shape, max_types=2, max_unique_points=None, min_marginal_capture_per_point=0.0):
     if source.get("model_sha256") != FIXED_HARUQ_SHA256:
         raise ValueError("Frozen HaruQ model SHA mismatch")
     original = choose(source, ura, shape)
     return combine_types(original, max_types=max_types,
-                         max_unique_points=max_unique_points)
+                         max_unique_points=max_unique_points,
+                         min_marginal_capture_per_point=min_marginal_capture_per_point)
 
 
 def main():
@@ -107,12 +113,14 @@ def main():
     ap.add_argument("--shape",type=Path,default=Path("artifacts/ura_shape_selector_v1.json"))
     ap.add_argument("--max-types",type=int,default=2)
     ap.add_argument("--max-unique-points",type=int)
+    ap.add_argument("--min-marginal-capture-per-point",type=float,default=0.0)
     ap.add_argument("--out",type=Path,default=Path("ura_portfolio_research.json"))
     args=ap.parse_args()
     source=json.loads(args.prediction.read_text(encoding="utf-8"))
     fixed_ura=load_fixed(args.ura)
     shape=json.loads(args.shape.read_text(encoding="utf-8"))
-    result=analyze(source,fixed_ura,shape,args.max_types,args.max_unique_points)
+    result=analyze(source,fixed_ura,shape,args.max_types,args.max_unique_points,
+                   args.min_marginal_capture_per_point)
     args.out.parent.mkdir(parents=True,exist_ok=True)
     args.out.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({"race_id":result["race_id"],

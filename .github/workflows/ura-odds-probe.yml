@@ -1,0 +1,35 @@
+name: URA independent odds archive probe
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-odds-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify 2026 trifecta odds public archive schema without reading any secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fLSs --retry 2 --max-time 120 \
+            -o /tmp/odds_2026.jsonl.gz \
+            https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/main/data/odds_only/odds_2026.jsonl.gz
+          python - <<'PY'
+          import gzip,json,collections
+          path='/tmp/odds_2026.jsonl.gz'
+          with gzip.open(path,'rt',encoding='utf-8') as f:
+              sample=[json.loads(next(f)) for i in range(5)]
+          for item in sample:
+              print(json.dumps({'race_id':item.get('race_id'),'race_type':item.get('race_type'),
+                 'odds_type':type(item.get('odds')).__name__,
+                 'odds_keys':list(item.get('odds',{}).keys())[:15] if isinstance(item.get('odds'),dict) else [],
+                 'odds_sample':str(item.get('odds'))[:400]},ensure_ascii=False))
+          PY

@@ -31,14 +31,14 @@ DATE_PREFIX="202606"
 EV_CUTOFF=1.0
 
 def odds_race_id(rid):
-    """KD-style ID NN+YYYYMMDD+venue(2)+race(4) to YYYYMMDD+venue(2)+race(2)."""
+    """KD-style venue(2)+YYYYMMDD+meet-day(2)+race(4) to YYYYMMDD+venue(2)+race(2)."""
     rid=str(rid)
     if not re.fullmatch(r"\d{16}",rid):
         raise ValueError("Unsupported archive ID format")
     num=int(rid[-4:])
     if not 1<=num<=12:
         raise ValueError("Archive race number out of bounds")
-    return rid[2:12]+f"{num:02d}"
+    return rid[2:10]+rid[:2]+f"{num:02d}"
 
 def frozen_artifact(path):
     p=Path(path)

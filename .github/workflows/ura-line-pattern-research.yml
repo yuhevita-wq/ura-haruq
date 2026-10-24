@@ -1,0 +1,83 @@
+name: URA line compositions outside frozen 2-2-2-1
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-line-pattern-research.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencies and unit tests
+        run: |
+          set -euo pipefail
+          python -m pip install -r requirements.txt
+          python -m unittest discover -s tests -v
+          python -m unittest discover -s research/line_patterns_20261025 -p 'test_*.py' -v
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+      - name: Retrieve verified 2023-2025 V3 annual labels
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40056803172
+          github-token: ${{ github.token }}
+          pattern: v3-year-*
+          merge-multiple: true
+          path: v3_input/
+      - name: Verify labels
+        run: |
+          set -euo pipefail
+          for y in 2023 2024 2025; do
+            test -s "v3_input/year_$y.csv"
+            test -s "v3_input/audit_$y.json"
+          done
+      - name: Restore checksum-verified original historical DB (read only)
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          mkdir -p fixed_inputs db
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D fixed_inputs/
+          ( cd fixed_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt )
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt fixed_inputs/keirin-history.sqlite.gpg
+          ( cd db && sha256sum -c ../fixed_inputs/PLAINTEXT_SHA256.txt )
+      - name: Analyze all identifiable line formations and LOW quartiles
+        run: |
+          set -euo pipefail
+          python -u -m research.line_patterns_20261025.analyze --input v3_input --out line_study
+          test -s line_study/summary.json
+          test -s line_study/pattern_yearly.csv
+          test -s line_study/pattern_LOW_quartiles.csv
+          python - <<'PY'
+          import json
+          x=json.load(open('line_study/summary.json'))
+          assert x['frozen_2221_unchanged'] and x['purchase_approved'] is False
+          assert '2-2-2-1' in x['patterns']
+          assert next(m for m in x['models'] if m['pattern']=='2-2-2-1')['status']=='FROZEN_CONTROL_NOT_TRAINED'
+          assert sum(y['usable_classified_lineups'] for y in x['years'].values())>0
+          PY
+      - name: Archive research data only
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ura-line-patterns-2023-2025-research-only
+          path: line_study/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Remove decrypted history
+        if: always()
+        run: rm -f db/keirin.db fixed_inputs/keirin-history.sqlite.gpg

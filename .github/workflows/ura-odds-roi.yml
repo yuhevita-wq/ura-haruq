@@ -1,0 +1,76 @@
+name: URA frozen odds ROI audit (June 2026)
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ura-odds-roi.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ura-haruq-frozen-roi-june2026
+  cancel-in-progress: false
+jobs:
+  frozen-roi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install exact frozen inference environment
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Verify frozen URA model code and coefficients
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+          python -m unittest discover -s tests -v
+      - name: Recover immutable original HaruQ model and actual race history
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          mkdir -p db fixed_inputs
+          gh release download haruqube-20260321-flagship-v1 --repo yuhevita-wq/haruq -p haruqube_20260321_fresh_model.pkl -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D fixed_inputs/
+          ( cd fixed_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt )
+          test "$(sha256sum fixed_inputs/haruqube_20260321_fresh_model.pkl | cut -d' ' -f1)" = e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt fixed_inputs/keirin-history.sqlite.gpg
+          ( cd db && sha256sum -c ../fixed_inputs/PLAINTEXT_SHA256.txt )
+      - name: Download real archived 2026 final trifecta odds
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fLSs --retry 3 --max-time 150 -o fixed_inputs/odds_2026.jsonl.gz \
+            https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/main/data/odds_only/odds_2026.jsonl.gz
+          gzip -t fixed_inputs/odds_2026.jsonl.gz
+      - name: Run genuinely held-out June 2026 settlement ROI audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u -m ura.roi_holdout \
+            --model fixed_inputs/haruqube_20260321_fresh_model.pkl \
+            --artifact artifacts/ura_ai_v1.json \
+            --odds fixed_inputs/odds_2026.jsonl.gz \
+            --out ura_roi_outputs
+      - name: Archive reproducible ROI summary and every observed ticket outcome
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ura-frozen-june-2026-odds-audit
+          path: ura_roi_outputs/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Delete decrypted history and temporary odds
+        if: always()
+        run: rm -f db/keirin.db fixed_inputs/keirin-history.sqlite.gpg fixed_inputs/odds_2026.jsonl.gz fixed_inputs/haruqube_20260321_fresh_model.pkl

@@ -104,7 +104,7 @@ def evaluate(input_csv,outdir):
                             "actual_yen":int(x["payout_yen"]),
                             "contains_underdog":int(any(rankings[b]>=5 for b in actual)),
                             "LOW_gap":float(x["gap"])})
-    if sum(v=="ok" for k,v in counters.items() if k=="ok")==0:raise RuntimeError("No complete 2026H1 3-2-2")
+    if counters["ok"] == 0:raise RuntimeError("No complete 2026H1 3-2-2")
     stats={k:summarize(v) for k,v in sorted(study.items())}
     for family in FAMILIES:
         observed=descript[family]

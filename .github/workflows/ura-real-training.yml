@@ -1,0 +1,41 @@
+name: Train independent URA-HARUQ on real races
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ura-real-training.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-training:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: Load verified historical assets
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          mkdir -p db training_inputs
+          gh release download haruqube-20260321-flagship-v1 --repo yuhevita-wq/haruq -p haruqube_20260321_fresh_model.pkl -D training_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D training_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D training_inputs/
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt training_inputs/keirin-history.sqlite.gpg
+          ( cd db && sha256sum -c ../training_inputs/PLAINTEXT_SHA256.txt )
+      - name: Train independent URA AI
+        run: python -u -m ura.train --model training_inputs/haruqube_20260321_fresh_model.pkl --out ura_outputs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ura-real-training-result
+          path: ura_outputs/ura_ai_v1.json
+          if-no-files-found: error
+      - if: always()
+        run: rm -f db/keirin.db training_inputs/keirin-history.sqlite.gpg

@@ -85,3 +85,5 @@ jobs:
       - name: Remove decrypted historical data
         if: always()
         run: rm -f db/keirin.db fixed_inputs/haruqube_20260321_fresh_model.pkl fixed_inputs/keirin-history.sqlite.gpg fixed_inputs/odds_2026.jsonl.gz
+
+# 2026 quarter-level reporting added; candidate families and existing policies remain frozen.

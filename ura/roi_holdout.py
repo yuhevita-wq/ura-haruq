@@ -11,6 +11,7 @@ import json
 import math
 import re
 import sqlite3
+from datetime import datetime,timedelta
 from collections import Counter
 from pathlib import Path
 from statistics import mean
@@ -31,14 +32,21 @@ DATE_PREFIX="202606"
 EV_CUTOFF=1.0
 
 def odds_race_id(rid):
-    """KD-style venue(2)+YYYYMMDD+meet-day(2)+race(4) to YYYYMMDD+venue(2)+race(2)."""
+    """KD-style venue(2)+MEETING_START(8)+meeting_day(2)+race(4).
+
+    Meeting day is 1-indexed; source date is meeting start, NOT race date.
+    """
     rid=str(rid)
     if not re.fullmatch(r"\d{16}",rid):
         raise ValueError("Unsupported archive ID format")
     num=int(rid[-4:])
     if not 1<=num<=12:
         raise ValueError("Archive race number out of bounds")
-    return rid[2:10]+rid[:2]+f"{num:02d}"
+    meeting_day=int(rid[10:12])
+    if not 1<=meeting_day<=6:
+        raise ValueError("Unsupported meeting day")
+    actual_day=(datetime.strptime(rid[2:10],"%Y%m%d").date()+timedelta(days=meeting_day-1))
+    return actual_day.strftime("%Y%m%d")+rid[:2]+f"{num:02d}"
 
 def frozen_artifact(path):
     p=Path(path)

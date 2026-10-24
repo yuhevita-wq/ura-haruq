@@ -106,6 +106,13 @@ def evaluate(input_csv,outdir):
                             "LOW_gap":float(x["gap"])})
     if counters["ok"] == 0:raise RuntimeError("No complete 2026H1 3-2-2")
     stats={k:summarize(v) for k,v in sorted(study.items())}
+    quarter_groups={}
+    for strat, rows in sorted(study.items()):
+        quarter_groups[strat]={
+            "2026Q1":summarize([r for r in rows if r["date"]<"2026-04-01"]),
+            "2026Q2":summarize([r for r in rows if r["date"]>="2026-04-01"]),
+        }
+
     for family in FAMILIES:
         observed=descript[family]
         stats["family_"+family]["observed_winning_races_all"]=len(observed)
@@ -121,6 +128,7 @@ def evaluate(input_csv,outdir):
             "lineup_audit":dict(counters),
             "selected_probes":PROBES,
             "family_stats":stats,
+            "calendar_quarter_stats":quarter_groups,
             "caveats":[
                 "Historical frozen model could have trained on 2026 results, not necessarily genuinely out of sample",
                 "Source date for features from historical entry/result table not audited as-of prestart",
@@ -134,6 +142,9 @@ def evaluate(input_csv,outdir):
     (out/"summary.json").write_text(json.dumps(output,ensure_ascii=False,indent=2)+"\n",encoding="utf8")
     with (out/"realized_2026_geometry.csv").open("w",newline="",encoding="utf8") as f:
         w=csv.DictWriter(f,fieldnames=list(day_log[0]));w.writeheader();w.writerows(day_log)
+    with (out/"strategy_per_race_2026.csv").open("w",newline="",encoding="utf8") as f:
+        allrows=[{"strategy":name,**r} for name, records in sorted(study.items()) for r in records]
+        w=csv.DictWriter(f,fieldnames=list(allrows[0]));w.writeheader();w.writerows(allrows)
     print("URA_2026H1_FROZEN_322",json.dumps(output,ensure_ascii=False),flush=True)
     return output
 

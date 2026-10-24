@@ -23,6 +23,7 @@ from ura.roi_holdout import (odds_race_id,actual_and_payout,feature_snapshot,
                              frozen_artifact,FROZEN_HARUQ_MODEL_SHA256)
 from ura.formation_selector import load_fixed
 from ura.formation_marginal import predict_marginals,frontier,MODEL_NAME
+from ura.core import prepare
 
 BEGIN="2026-04-01"
 END_EXCLUSIVE="2026-06-01"
@@ -186,11 +187,24 @@ def run(model_path,odds_path,out_dir):
             unique_win_types=[i for i in range(1,7) if winning in forms[i]["tickets"]]
             if len(unique_win_types)>1:
                 raise RuntimeError("Overlapping 7-9 riders shapes: invalid marginal outcomes")
+            # Auditable pre-outcome prediction ranks for learning NEW formation families.
+            # Never infer ranking from the winner or odds; winner is used only as label.
+            urariders,urax,_,_=prepare(scores)
+            utilities=urax@np.asarray(base["parameters"],float)
+            priority=sorted(range(n),key=lambda i:(-utilities[i],int(urariders[i]["bike_number"])))
+            priority_bikes=[int(urariders[i]["bike_number"]) for i in priority]
+            ranks_by_bike={b:i+1 for i,b in enumerate(priority_bikes)}
+            actual_ranks=[ranks_by_bike[int(v)] for v in winning.split("-")]
+            if len(set(actual_ranks))!=3:
+                raise RuntimeError("Incorrect actual rank reconstruction")
             evidence.append({"race_id":rid,"date":date,"month":month,
                         "winner":winning,"payout":payout,"n":n,
                         "gap":round(gap,5),"actual_outcome_type":unique_win_types[0] if unique_win_types else 0,
                         "all6_points":sum(forms[i]["points"] for i in range(1,7)),
-                        "marginal_p_none":round(prediction["probabilities_by_outcome"]["0"],8)})
+                        "marginal_p_none":round(prediction["probabilities_by_outcome"]["0"],8),
+                        "ura_probability_rank_bikes":"-".join(map(str,priority_bikes)),
+                        "actual_rank_positions":"-".join(map(str,actual_ranks)),
+                        "ura_rank_utilities":";".join(f"{utilities[i]:.12g}" for i in priority)})
             for strategy,types in choices.items():
                 tickets=set().union(*(set(forms[i]["tickets"]) for i in types)) if types else set()
                 if sum(forms[i]["points"] for i in types)!=len(tickets):

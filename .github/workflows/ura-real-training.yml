@@ -28,6 +28,9 @@ jobs:
           gh release download haruqube-20260321-flagship-v1 --repo yuhevita-wq/haruq -p haruqube_20260321_fresh_model.pkl -D training_inputs/
           gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D training_inputs/
           gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D training_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D training_inputs/
+          ( cd training_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt )
+          test "$(sha256sum training_inputs/haruqube_20260321_fresh_model.pkl | cut -d' ' -f1)" = e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193
           printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt training_inputs/keirin-history.sqlite.gpg
           ( cd db && sha256sum -c ../training_inputs/PLAINTEXT_SHA256.txt )
       - name: Train independent URA AI

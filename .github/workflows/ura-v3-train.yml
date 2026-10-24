@@ -1,0 +1,111 @@
+name: V3 learn formations from 2023-2025 real race data
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-v3-train.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ura-v3-history-2023-learning
+  cancel-in-progress: false
+jobs:
+  extract-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        year: [2023, 2024, 2025]
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact dependencies and all fixed model tests
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m unittest discover -s tests -v
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+      - name: Restore immutable reference model and historical race DB
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          mkdir -p fixed_inputs db
+          gh release download haruqube-20260321-flagship-v1 --repo yuhevita-wq/haruq -p haruqube_20260321_fresh_model.pkl -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D fixed_inputs/
+          ( cd fixed_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt )
+          test "$(sha256sum fixed_inputs/haruqube_20260321_fresh_model.pkl | cut -d' ' -f1)" = e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt fixed_inputs/keirin-history.sqlite.gpg
+          ( cd db && sha256sum -c ../fixed_inputs/PLAINTEXT_SHA256.txt )
+      - name: Acquire all real complete final odds from selected year
+        env:
+          YEAR: ${{ matrix.year }}
+        run: |
+          set -euo pipefail
+          curl -fLSs --retry 4 --max-time 240 -o fixed_inputs/odds_year.jsonl.gz "https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/main/data/odds_only/odds_${YEAR}.jsonl.gz"
+          gzip -t fixed_inputs/odds_year.jsonl.gz
+          sha256sum fixed_inputs/odds_year.jsonl.gz > fixed_inputs/odds_year_checksum.txt
+      - name: Reconstruct URA probability ranks and labeled official returns
+        env:
+          YEAR: ${{ matrix.year }}
+        run: |
+          set -euo pipefail
+          python -u -m ura.formation_v3_extract --year "$YEAR" --model fixed_inputs/haruqube_20260321_fresh_model.pkl --odds fixed_inputs/odds_year.jsonl.gz --out v3_year/
+          cp fixed_inputs/odds_year_checksum.txt v3_year/odds_${YEAR}_sha256.txt
+      - name: Archive labeled historical V3 rows per year
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-year-${{ matrix.year }}
+          path: v3_year/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Remove all decrypted copies
+        if: always()
+        run: rm -f db/keirin.db fixed_inputs/keirin-history.sqlite.gpg fixed_inputs/odds_year.jsonl.gz fixed_inputs/haruqube_20260321_fresh_model.pkl
+  fit-and-evaluate:
+    needs: [extract-history]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install exact frozen training dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m unittest discover -s tests -v
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: v3-year-*
+          merge-multiple: true
+          path: v3_input/
+      - name: Train new V3 shapes on 2023 and 2024 only; audit 2025 afterward
+        run: |
+          set -euo pipefail
+          ls -lh v3_input/
+          python -u -m ura.formation_v3_train --input v3_input/ --out v3_learning/
+          cp v3_input/audit_*.json v3_learning/
+          cp v3_input/odds_*_sha256.txt v3_learning/
+      - name: Archive actual learned V3 models and evaluation
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ura-v3-2023-founded-formation-learning
+          path: v3_learning/
+          if-no-files-found: error
+          retention-days: 90

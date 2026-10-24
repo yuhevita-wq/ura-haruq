@@ -1,4 +1,4 @@
-name: URA frozen odds ROI audit (June 2026, ID verified)
+name: URA frozen odds ROI audit (June 2026, meeting dates corrected)
 on:
   push:
     branches: [main]

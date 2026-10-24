@@ -39,6 +39,17 @@ jobs:
                   t=it.get('odds',{}).get('3連単',{})
                   if t:obs+=1
                   first.setdefault(day[:6],rid)
+          from collections import defaultdict
+          groups=defaultdict(list)
+          with gzip.open(path,'rt',encoding='utf-8') as h:
+              for raw in h:
+                  obj=json.loads(raw);rid=str(obj.get('race_id',''))
+                  if len(rid)!=16 or rid[2:8]!='202606':continue
+                  key=rid[2:10]+rid[:2]+rid[-2:]
+                  groups[key].append({'id':rid,'type':obj.get('race_type'),'n3':len(obj.get('odds',{}).get('3連単',{}))})
+          repeated={k:v for k,v in groups.items() if len(v)>1}
+          print('JUNE_KEY_GROUPS',len(groups),'DUPLICATE',len(repeated))
+          for k,v in list(repeated.items())[:15]:print('COLLISION',k,str(v)[:640])
           print('ARCHIVE_MONTHS',dict(sorted(counts.items())))
           print('RACE_ID_LENGTHS',dict(formats),'WITH_TRIFECTA',obs,'EXAMPLE_RACE_IDS',first)
           for item in sample:

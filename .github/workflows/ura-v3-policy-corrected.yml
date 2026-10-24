@@ -1,0 +1,49 @@
+name: V3 policy-corrected 2023 training from verified year-level labels
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-v3-policy-corrected.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  corrected-training:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test fixed model and V3 original-URA eligibility
+        run: |
+          set -euo pipefail
+          python -m pip install -r requirements.txt
+          python -m unittest discover -s tests -v
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+      - name: Retrieve 2023 2024 2025 verified annual labels without editing them
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40056803172
+          github-token: ${{ github.token }}
+          pattern: v3-year-*
+          merge-multiple: true
+          path: v3_input/
+      - name: Relearn rank formation families with original lower-rank ticket policy
+        run: |
+          set -euo pipefail
+          python -u -m ura.formation_v3_train --input v3_input/ --out v3_corrected/
+          cp v3_input/audit_*.json v3_corrected/
+          cp v3_input/odds_*_sha256.txt v3_corrected/
+      - name: Archive original-URA-compliant fitted V3 model and every cash outcome
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ura-v3-2023-underdog-only-learned
+          path: v3_corrected/
+          if-no-files-found: error
+          retention-days: 90

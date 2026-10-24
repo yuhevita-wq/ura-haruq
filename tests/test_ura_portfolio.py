@@ -65,6 +65,13 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(result["unique_points"],3)
         self.assertEqual(result["duplicated_points_removed"],1)
 
+    def test_marginal_cutoff_allows_zero_or_one_types(self):
+        zero=analyze(self.source,self.ura,self.shape,max_types=6,
+                     min_marginal_capture_per_point=1.0)
+        self.assertEqual(zero["selected_type_ids"],[])
+        self.assertEqual(zero["unique_points"],0)
+        self.assertFalse(zero["purchase_approved"])
+
     def test_reject_invalid_limits(self):
         with self.assertRaises(ValueError):combine_types({},max_types=0)
         with self.assertRaises(ValueError):combine_types({},max_types=7)

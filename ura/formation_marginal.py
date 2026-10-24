@@ -76,13 +76,14 @@ def marginal_choices(prediction,already_selected=()):
             "none_of_six_probability":float(q["0"]),
             "additional_options":options,"research_only":True,"purchase_approved":False}
 
-def frontier(prediction,max_types=6):
+def frontier(prediction,max_types=6,required_types=()):
     if prediction["decision"]!="RESEARCH":return []
     if type(max_types)!=int or not 0<=max_types<=6:raise ValueError("max_types out of bounds")
     q=prediction["probabilities_by_outcome"];forms=prediction["shapes"]
     plans=[]
     for n_types in range(max_types+1):
         for combo in itertools.combinations(range(1,7),n_types):
+            if not all(t in combo for t in required_types):continue
             points=sum(int(forms[i]["points"]) for i in combo)
             probability=sum(float(q[str(i)]) for i in combo)
             plans.append({"types":list(combo),"points":points,"expected_capture_probability":probability})
@@ -99,7 +100,7 @@ def analyze(source,ura,shape,model,already_selected=(),max_types=6,max_points=No
     if max_points is not None and (type(max_points)!=int or max_points<0):
         raise ValueError("max_points must be nonnegative integer")
     selections=marginal_choices(prediction,already_selected)
-    efficient=frontier(prediction,max_types)
+    efficient=frontier(prediction,max_types,already_selected)
     feasible=[z for z in efficient if (max_points is None or z["points"]<=max_points)
               and all(t in z["types"] for t in already_selected)]
     best=max(feasible,key=lambda z:(z["expected_capture_probability"],-z["points"])) if feasible else None

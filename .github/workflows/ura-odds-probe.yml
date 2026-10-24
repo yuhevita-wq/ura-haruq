@@ -27,6 +27,20 @@ jobs:
           path='/tmp/odds_2026.jsonl.gz'
           with gzip.open(path,'rt',encoding='utf-8') as f:
               sample=[json.loads(next(f)) for i in range(5)]
+          counts=collections.Counter()
+          obs=0; win=0; formats=collections.Counter(); first={}
+          with gzip.open(path,'rt',encoding='utf-8') as h:
+              for raw in h:
+                  it=json.loads(raw)
+                  rid=str(it.get('race_id',''))
+                  day=rid[2:10] if len(rid)==16 else rid[:8]
+                  counts[day[:6]]+=1
+                  formats[len(rid)]+=1
+                  t=it.get('odds',{}).get('3連単',{})
+                  if t:obs+=1
+                  first.setdefault(day[:6],rid)
+          print('ARCHIVE_MONTHS',dict(sorted(counts.items())))
+          print('RACE_ID_LENGTHS',dict(formats),'WITH_TRIFECTA',obs,'EXAMPLE_RACE_IDS',first)
           for item in sample:
               print(json.dumps({'race_id':item.get('race_id'),'race_type':item.get('race_type'),
                  'odds_type':type(item.get('odds')).__name__,

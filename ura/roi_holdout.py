@@ -55,6 +55,7 @@ def frozen_artifact(path):
 
 def load_quoted_odds(path):
     found={}
+    quarantined=set()
     counters=Counter()
     with gzip.open(path,"rt",encoding="utf-8") as fp:
         for line in fp:
@@ -70,8 +71,8 @@ def load_quoted_odds(path):
             if not isinstance(market,dict) or not market:
                 counters["no_trifecta"]+=1
                 continue
-            if rid in found:
-                counters["duplicate_race_ids"]+=1
+            if rid in quarantined:
+                counters["already_quarantined_duplicate"]+=1
                 continue
             prices={}
             for ticket,price in market.items():
@@ -82,11 +83,21 @@ def load_quoted_odds(path):
                         or not math.isfinite(price) or price<=1):
                     continue
                 prices[ticket]=float(price)
+            if rid in found:
+                if found[rid]["prices"]==prices:
+                    counters["identical_duplicate_quotes"]+=1
+                else:
+                    # Ambiguous same-race quotes are excluded entirely, never resolved
+                    # by which market price later won or by choosing a better payout.
+                    del found[rid]
+                    quarantined.add(rid)
+                    counters["conflicting_duplicate_races"]+=1
+                continue
             found[rid]={"prices":prices,"archive_id":obj["race_id"],
                         "race_type":obj.get("race_type")}
             counters["archived_june_races"]+=1
-    if counters["duplicate_race_ids"]:
-        raise RuntimeError("Duplicate odds mapping; cannot de-duplicate based on outcome")
+    counters["quarantined_races"]=len(quarantined)
+    counters["unique_unambiguous_june_races"]=len(found)
     return found,dict(counters)
 
 def actual_and_payout(conn,rid):

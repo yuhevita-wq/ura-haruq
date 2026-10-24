@@ -5,7 +5,7 @@
   "training_races": 457,
   "comparison_period": "2026-05-01..2026-05-31",
   "comparison_races": 349,
-  "candidate_family": "non-overfitted-in-code 3-dimensional contiguous intervals of normalized 1..7 URA probability ranks, per finishing position",
+  "candidate_family": "3-dimensional contiguous ranges on normalized 1..7 URA probability ranks; optimized only on April outcomes",
   "candidates_explored": 21952,
   "candidates_passing_support": 8394,
   "selection_scope": "April only; held-out May row results not used to choose shapes",

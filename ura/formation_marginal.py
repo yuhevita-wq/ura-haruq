@@ -100,7 +100,8 @@ def analyze(source,ura,shape,model,already_selected=(),max_types=6,max_points=No
         raise ValueError("max_points must be nonnegative integer")
     selections=marginal_choices(prediction,already_selected)
     efficient=frontier(prediction,max_types)
-    feasible=[z for z in efficient if max_points is None or z["points"]<=max_points]
+    feasible=[z for z in efficient if (max_points is None or z["points"]<=max_points)
+              and all(t in z["types"] for t in already_selected)]
     best=max(feasible,key=lambda z:(z["expected_capture_probability"],-z["points"])) if feasible else None
     return {**selections,
         "outcome_probabilities":prediction["probabilities_by_outcome"],

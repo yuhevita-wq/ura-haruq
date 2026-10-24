@@ -1,0 +1,179 @@
+{
+  "system": "URA_FORMATION_V2_DISCOVERY_READ_ONLY",
+  "status": "RESEARCH_ONLY_NOT_ACTIVE",
+  "training_period": "2026-04-01..2026-04-30",
+  "training_races": 457,
+  "comparison_period": "2026-05-01..2026-05-31",
+  "comparison_races": 349,
+  "candidate_family": "non-overfitted-in-code 3-dimensional contiguous intervals of normalized 1..7 URA probability ranks, per finishing position",
+  "candidates_explored": 21952,
+  "candidates_passing_support": 8394,
+  "selection_scope": "April only; held-out May row results not used to choose shapes",
+  "frozen_full_april_catalog_sha256": "3b63d9def17eb28ca0ccfcddb8b387c621ca89830d5c79d8481d2f3447fd8135",
+  "shape_instances": [
+    {
+      "id": "N1",
+      "rank_bin_intervals": [
+        [
+          3,
+          3
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          7,
+          7
+        ]
+      ],
+      "candidate_index": 10499,
+      "points7": 3,
+      "points9": 8,
+      "train_roi": 178.136,
+      "may_roi": 20.183,
+      "may_hits": 2
+    },
+    {
+      "id": "N2",
+      "rank_bin_intervals": [
+        [
+          2,
+          2
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "candidate_index": 5542,
+      "points7": 2,
+      "points9": 3,
+      "train_roi": 187.909,
+      "may_roi": 103.243,
+      "may_hits": 15
+    },
+    {
+      "id": "N3",
+      "rank_bin_intervals": [
+        [
+          2,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          5,
+          7
+        ]
+      ],
+      "candidate_index": 5568,
+      "points7": 6,
+      "points9": 12,
+      "train_roi": 126.415,
+      "may_roi": 93.953,
+      "may_hits": 29
+    },
+    {
+      "id": "N4",
+      "rank_bin_intervals": [
+        [
+          2,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          7
+        ]
+      ],
+      "candidate_index": 5550,
+      "points7": 10,
+      "points9": 21,
+      "train_roi": 100.839,
+      "may_roi": 98.332,
+      "may_hits": 55
+    },
+    {
+      "id": "N5",
+      "rank_bin_intervals": [
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          5
+        ]
+      ],
+      "candidate_index": 844,
+      "points7": 12,
+      "points9": 24,
+      "train_roi": 93.99,
+      "may_roi": 77.785,
+      "may_hits": 72
+    },
+    {
+      "id": "N6",
+      "rank_bin_intervals": [
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          7,
+          7
+        ]
+      ],
+      "candidate_index": 1595,
+      "points7": 2,
+      "points9": 3,
+      "train_roi": 164.152,
+      "may_roi": 65.603,
+      "may_hits": 7
+    }
+  ],
+  "nested_relationships": [
+    "N2 subset of N3 subset of N4: treat as one expandable family, not three independent types"
+  ],
+  "comparisons": {
+    "v2_union_may": {
+      "races": 349,
+      "points": 8689,
+      "hits": 100,
+      "roi_percent": 78.894
+    },
+    "v1_six_union_may": {
+      "races": 349,
+      "points": 21613,
+      "hits": 93,
+      "roi_percent": 76.948
+    }
+  },
+  "limitations": [
+    "May 2026 was seen in prior V1 research; not a pristine prospective holdout",
+    "Final odds only; presale timing of features and prices not audited",
+    "No purchase authorization",
+    "Selection of V2 conditions after May must be treated as research exploratory, not independent validation"
+  ],
+  "frozen_base_unchanged": true,
+  "frozen_ura_unchanged": true,
+  "purchase_approved": false
+}

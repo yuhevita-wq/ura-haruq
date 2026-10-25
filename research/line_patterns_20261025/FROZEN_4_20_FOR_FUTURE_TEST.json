@@ -1,0 +1,49 @@
+{
+  "policy_id": "URA_322_HIGH_FIRST_4_20_FROZEN_20261025",
+  "research_only": true,
+  "ticket_yen": 100,
+  "frozen_basis": "strict_highfirst_110 original order: first 4 of LOW .25-.50 and first 20 of LOW .75-1.00",
+  "study_date": "2026-10-25",
+  "LOW_types": {
+    "0.00-0.25": [],
+    "0.25-0.50": [
+      "2B-3T-3H|23",
+      "3T-2B-3B|13",
+      "3T-3B-2H|12",
+      "2H-3H-3T|23"
+    ],
+    "0.50-0.75": [],
+    "0.75-1.00": [
+      "3T-3H-2B|12",
+      "2B-3T-3B|23",
+      "3H-2H-3T|13",
+      "2B-2B-2H|23",
+      "3T-3B-2H|12",
+      "3H-3T-2H|12",
+      "2H-2B-3T|12",
+      "2B-2H-2B|23",
+      "2B-3H-3B|23",
+      "3B-2B-3H|13",
+      "3H-2B-2H|23",
+      "2B-2H-3H|12",
+      "3H-2B-3B|13",
+      "2H-3B-3H|23",
+      "2H-3H-3B|23",
+      "2H-2B-2H|12",
+      "2H-2B-2B|12",
+      "3H-3B-2H|12",
+      "2H-2B-3B|12",
+      "2B-3T-2H|13"
+    ]
+  },
+  "actual_eligible_rank_min": 5,
+  "line_pattern": "3-2-2",
+  "source_portfolio": "/mnt/data/ura_high_first_results/high_first_addition_steps.csv",
+  "period_for_future_test": {
+    "start": "2026-07-01",
+    "end_exclusive": "2026-08-31"
+  },
+  "selection_uses_period_for_future_test": false,
+  "authoritative_rider_probability_model": "same frozen March 2026 HaruQ + frozen URA parameters",
+  "not_live_betting": true
+}

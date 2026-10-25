@@ -1,0 +1,90 @@
+name: URA frozen 4/20 separate July-Aug 2026 real-race test
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-322-frozen-4-20-2026h2.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  true-other-period:
+    runs-on: ubuntu-latest
+    timeout-minutes: 95
+    env:
+      GH_TOKEN: \${{ github.token }}
+      COLLECTOR_PASSPHRASE: \${{ secrets.COLLECTOR_PASSPHRASE }}
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test fixed original system and separate-cohort classifier
+        run: |
+          set -euo pipefail
+          python -m pip install -r requirements.txt
+          python -m unittest discover -s tests -v
+          python -m unittest discover -s research/line_patterns_20261025 -p 'test_*.py' -v
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+          python - <<'PY'
+          import json
+          from research.line_patterns_20261025.evaluate_frozen_4_20_julaug import audit_policy
+          obj=json.load(open('research/line_patterns_20261025/FROZEN_4_20_FOR_FUTURE_TEST.json'))
+          assert [len(audit_policy(obj)[b]) for b in ('0.00-0.25','0.25-0.50','0.50-0.75','0.75-1.00')]==[0,4,0,20]
+          print('FROZEN_4_20_POLICY_VERIFIED')
+          PY
+      - name: Download source captured September 17 after July-Aug event dates
+        run: |
+          set -euo pipefail
+          base=https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/837d7ce1214426df0bb9d7efe4f9b892e7f1861e/data/2026_future_block1/s_class_f1_20260701_20260830
+          mkdir -p future fixed_inputs db
+          for f in races entries results payouts; do
+            curl -fLsS --retry 4 --max-time 220 "$base/$f.csv" -o "future/$f.csv"
+            test -s "future/$f.csv"
+            sha256sum "future/$f.csv"
+          done
+      - name: Restore original HaruQ frozen ranker and verifiable encrypted history
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          gh release download haruqube-20260321-flagship-v1 --repo yuhevita-wq/haruq -p haruqube_20260321_fresh_model.pkl -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D fixed_inputs/
+          (cd fixed_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt)
+          test "$(sha256sum fixed_inputs/haruqube_20260321_fresh_model.pkl | cut -d' ' -f1)" = e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt fixed_inputs/keirin-history.sqlite.gpg
+          (cd db && sha256sum -c ../fixed_inputs/PLAINTEXT_SHA256.txt)
+      - name: Evaluate frozen 4/20 geometries on July-Aug F1 S actual results
+        run: |
+          set -euo pipefail
+          python -u -m research.line_patterns_20261025.evaluate_frozen_4_20_julaug \
+            --model fixed_inputs/haruqube_20260321_fresh_model.pkl \
+            --policy research/line_patterns_20261025/FROZEN_4_20_FOR_FUTURE_TEST.json \
+            --source future --out july_aug_4_20_results
+          python - <<'PY'
+          import json
+          x=json.load(open('july_aug_4_20_results/future_cohort_audit.json'))
+          assert not x['purchase_approved'] and not x['existing_web_or_ai_modified']
+          assert x['frozen_haruq_sha256']=='e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193'
+          print('JUL_AUG_HOLDOUT_VALID',[(z['period'],z['LOW_band'],z['races'],z['hits'],z['roi_pct']) for z in x['metrics']])
+          PY
+      - name: Archive independent cohort result only, without private source data
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ura-322-4-20-frozen-2026-july-august-S-F1-research-only
+          path: july_aug_4_20_results/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Remove historical decrypted database and source copies
+        if: always()
+        run: |
+          rm -f db/keirin.db db/keirin.db-wal db/keirin.db-shm
+          rm -f fixed_inputs/haruqube_20260321_fresh_model.pkl fixed_inputs/keirin-history.sqlite.gpg
+          rm -f future/races.csv future/entries.csv future/results.csv future/payouts.csv

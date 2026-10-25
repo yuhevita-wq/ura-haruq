@@ -47,3 +47,5 @@ jobs:
           if-no-files-found: error
           retention-days: 90
           compression-level: 7
+
+# Ten 2026 monthly artifacts are now complete; begin final reconciliation.

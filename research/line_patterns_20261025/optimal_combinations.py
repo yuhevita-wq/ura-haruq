@@ -80,9 +80,9 @@ def solve(types,mode):
     net24=np.asarray([x["2024_net_yen"] for x in types],dtype=float)
     npoints=np.asarray([x["2023_points"]+x["2024_points"] for x in types],float)
     nhits=np.asarray([x["2023_hits"]+x["2024_hits"] for x in types],float)
-    profit=(net23+net24) / 100.0  # integer yen/100 in objective
+    profit=(net23+net24)  # integer yen objective, no artificial rounding
     scores=profit if mode=="profit" else nhits
-    rows=np.vstack([net23/100.0,net24/100.0])
+    rows=np.vstack([net23,net24])
     yearly_constraints=LinearConstraint(rows,np.zeros(2),np.full(2,np.inf))
     args=dict(integrality=np.ones(n),bounds=Bounds(np.zeros(n),np.ones(n)),options={"time_limit":90,"mip_rel_gap":0.0})
     solution=milp(c=-scores,constraints=yearly_constraints,**args)
@@ -92,9 +92,9 @@ def solve(types,mode):
     opt=float(scores@best)
     if abs(round(opt)-opt)>TOL:raise RuntimeError("Unexpected non-integer objective")
     # Within the EXACT stage A maximum, choose cheaper betting coverage.
-    # Rows & score are integer-valued, so bound optimal score to opt-0.001.
+    # Rows & score are integer-valued, so bound optimal score to opt-0.01.
     tightened=LinearConstraint(np.vstack([rows,scores]),
-                               np.array([0,0,opt-.001]),
+                               np.array([0,0,opt-.01]),
                                np.array([np.inf,np.inf,np.inf]))
     sparse=milp(c=npoints,constraints=tightened,**args)
     if sparse.status!=0 or sparse.x is None:

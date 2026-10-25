@@ -88,3 +88,5 @@ jobs:
           rm -f db/keirin.db db/keirin.db-wal db/keirin.db-shm
           rm -f fixed_inputs/haruqube_20260321_fresh_model.pkl fixed_inputs/keirin-history.sqlite.gpg
           rm -f future/races.csv future/entries.csv future/results.csv future/payouts.csv
+
+# Re-run after paired-day bootstrap stake contract correction.

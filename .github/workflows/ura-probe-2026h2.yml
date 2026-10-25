@@ -1,0 +1,31 @@
+name: Probe independent 2026 Jul-Aug S F1 historical cohort
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-probe-2026h2.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect new independent dataset fields and dates
+        run: |
+          set -euo pipefail
+          base=https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/main/data/2026_future_block1/s_class_f1_20260701_20260830
+          mkdir -p future
+          for f in races entries results payouts; do
+            curl -fLsS --retry 3 --max-time 180 "$base/$f.csv" -o "future/$f.csv"
+          done
+          python - <<'PY'
+          import csv,json,collections
+          for f in 'races entries results payouts'.split():
+              with open(f'future/{f}.csv',encoding='utf-8-sig',newline='') as fh:
+                  rd=csv.DictReader(fh);first=next(rd)
+                  print('PROBE',f,','.join(first.keys()),flush=True)
+                  print('ROW',f,json.dumps(first,ensure_ascii=False),flush=True)
+                  print('TOTAL',f,1+sum(1 for _ in rd),flush=True)
+          PY

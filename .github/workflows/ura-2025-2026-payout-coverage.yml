@@ -1,0 +1,58 @@
+name: Research AUDIT 2025 and 2026 trifecta payout coverage before formation ROI
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/ura-2025-2026-payout-coverage.yml]
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  payout-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore signed full history DB
+        run: |
+          set -euo pipefail
+          mkdir -p db sealed
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D sealed/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D sealed/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D sealed/
+          (cd sealed && sha256sum -c ENCRYPTED_SHA256SUMS.txt)
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt sealed/keirin-history.sqlite.gpg
+          (cd db && sha256sum -c ../sealed/PLAINTEXT_SHA256.txt)
+      - name: Enumerate 2025 and 2026 race and payout availability BEFORE any ticket search
+        run: |
+          python - <<'PY'
+          import sqlite3,json
+          c=sqlite3.connect('db/keirin.db')
+          r=c.execute("""
+          SELECT substr(r.date,1,7) ym, r.grade, e.class cls,
+             COUNT(DISTINCT r.race_id) races, COUNT(DISTINCT CASE WHEN rp.sanrentan_payout>0 THEN r.race_id END) have_payout,
+             COUNT(DISTINCT CASE WHEN rp.sanrentan_combo IS NOT NULL THEN r.race_id END) have_combo
+          FROM races r LEFT JOIN entries e ON e.race_id=r.race_id
+             LEFT JOIN race_payouts rp ON rp.race_id=r.race_id
+          WHERE r.date>='2025-01-01' AND r.date<'2026-11-01'
+          GROUP BY ym,r.grade,cls ORDER BY ym,r.grade,cls
+          """).fetchall()
+          from collections import defaultdict
+          d=defaultdict(lambda:[0,0,0])
+          for ym,gr,cl,n,p,combo in r:
+            key=(ym,'S' if str(cl or '').startswith('S') else 'A3' if cl=='A3' else 'A1A2' if cl in ('A1','A2') else 'unknown')
+            # Do not sum per class because mixed class/grade repeats same race
+            # summaries are gradings within each class, not deduplicated across classes.
+            d[key][0]+=n;d[key][1]+=p;d[key][2]+=combo
+          for k,v in sorted(d.items()):print('PAYOUT_COVERAGE',k,v)
+          print('YEAR_TOTALS',c.execute("""SELECT substr(r.date,1,4) y,
+           COUNT(*) total, SUM(CASE WHEN p.sanrentan_payout>0 THEN 1 ELSE 0 END) have_pay,
+           SUM(CASE WHEN p.sanrentan_combo IS NOT NULL THEN 1 ELSE 0 END) have_combo
+          FROM races r LEFT JOIN race_payouts p ON p.race_id=r.race_id
+          WHERE r.date BETWEEN '2025-01-01' AND '2026-10-31'
+          GROUP BY y""").fetchall())
+          PY
+      - name: Delete decrypted db
+        if: always()
+        run: rm -f db/keirin.db db/keirin.db-* sealed/keirin-history.sqlite.gpg

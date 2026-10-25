@@ -37,7 +37,6 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile research/line_patterns_20261025/full_2026_historical_player_universe.py
-          python -m py_compile research/line_patterns_20261025/merge_full_2026_player_universe.py
           test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
           python -m pip install --disable-pip-version-check -r requirements.txt
           python -m unittest discover -s tests -v

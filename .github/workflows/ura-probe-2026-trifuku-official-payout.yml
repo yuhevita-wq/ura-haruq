@@ -1,0 +1,29 @@
+name: RESEARCH inspect preserved 2026 exacta trifecta settlement fields
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/ura-probe-2026-trifuku-official-payout.yml]
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch archived results samples and show object keys without private details
+        run: |
+          set -euo pipefail
+          for p in data/result_universe_v2/results_2026.jsonl.gz data/results_only/results_2026.jsonl.gz; do
+            curl -fLsS --retry 3 --max-time 120 "https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/main/$p" -o sample.gz
+            P="$p" python - <<'PY'
+          import gzip,json,os
+          with gzip.open('sample.gz','rt') as f:
+              rows=[json.loads(next(f)) for _ in range(3)]
+          for r in rows:
+              print('RESULT_2026_SOURCE',os.environ['P'],'keys',sorted(r))
+              for k,v in r.items():
+                  if 'payout' in k.lower() or 'fuku' in k.lower() or 'refund' in k.lower() or '3連複' in k:
+                      print('PAYOUT_VALUE',k,str(v)[:250])
+          PY
+          done

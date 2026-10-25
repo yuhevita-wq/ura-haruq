@@ -1,0 +1,101 @@
+name: URA 3-2-2 LOW global hit-payout portfolio research
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-322-global-hit-payout.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 95
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test unchanged source model, old and new LOW-portfolio studies
+        run: |
+          set -euo pipefail
+          python -m pip install -r requirements.txt
+          python -m unittest discover -s tests -v
+          python -m unittest discover -s research/line_patterns_20261025 -p 'test_*.py' -v
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+      - name: Get frozen 2023-2025 original V3 qualified labels
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40056803172
+          github-token: ${{ github.token }}
+          pattern: v3-year-*
+          merge-multiple: true
+          path: v3_input/
+      - name: Verify labeled historical source
+        run: |
+          set -euo pipefail
+          for y in 2023 2024 2025; do test -s "v3_input/year_$y.csv"; done
+      - name: Restore original signed model and encrypted archive read-only
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          mkdir -p fixed_inputs db
+          gh release download haruqube-20260321-flagship-v1 --repo yuhevita-wq/haruq -p haruqube_20260321_fresh_model.pkl -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D fixed_inputs/
+          (cd fixed_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt)
+          test "$(sha256sum fixed_inputs/haruqube_20260321_fresh_model.pkl | cut -d' ' -f1)" = e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt fixed_inputs/keirin-history.sqlite.gpg
+          (cd db && sha256sum -c ../fixed_inputs/PLAINTEXT_SHA256.txt)
+      - name: Restore genuine archived final odds for 2026H1 (read-only)
+        run: |
+          set -euo pipefail
+          curl -fLSs --retry 4 --max-time 240 -o fixed_inputs/odds_2026.jsonl.gz https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/main/data/odds_only/odds_2026.jsonl.gz
+          gzip -t fixed_inputs/odds_2026.jsonl.gz
+          test "$(sha256sum fixed_inputs/odds_2026.jsonl.gz | cut -d' ' -f1)" = 90a8ed4eb65ec1dc310698bcf08121965764b63750c6560edd9734869e8f6e94
+      - name: Reconstruct historical 2026H1 frozen LOW ranks
+        run: |
+          set -euo pipefail
+          python -u -m research.line_patterns_20261025.extract_2026 --model fixed_inputs/haruqube_20260321_fresh_model.pkl --odds fixed_inputs/odds_2026.jsonl.gz --out year26
+      - name: Optimize global hit-payout frontier over all types without individual type filtering
+        run: |
+          set -euo pipefail
+          python -u -m research.line_patterns_20261025.global_portfolio_payout_frontier --input v3_input --year26 year26/year_2026H1.csv --out global_payout_frontier/
+          python - <<'PY'
+          import json
+          x=json.load(open("global_payout_frontier/portfolio_selection_and_audit.json"))
+          assert x["frozen_2221_unchanged"] and x["frozen_haruq_unchanged"] and not x["purchase_approved"]
+          assert len(x["selection"])==4
+          assert len(x["overall"])==20
+          assert all(v["candidate_types"]==66 for v in x["selection"].values())
+          assert all(k["status"]=="optimal" for v in x["selection"].values() for k in v["policies"].values())
+          print("GLOBAL_PAYOUT_VALID",[(r["year"],r["scenario"],r["roi_pct"],r["hits"]) for r in x["overall"]],flush=True)
+          PY
+      - name: Archive global LOW-portfolio payout frontier, not operational model
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ura-322-LOW-global-payout-frontier-2023to2026-research
+          path: |
+            global_payout_frontier/
+            year26/extract_2026_audit.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Delete decrypted archives and input copies
+        if: always()
+        run: |
+          rm -f db/keirin.db fixed_inputs/keirin-history.sqlite.gpg fixed_inputs/haruqube_20260321_fresh_model.pkl fixed_inputs/odds_2026.jsonl.gz
+
+# 2026-10-25: candidate scope restricted to 12/23/13 same-line pair geometries; unchanged frozen baseline.
+
+# Exact MILP profit and coverage selection, no cardinality cap; never deployed.
+
+# Every one of the 66 candidate shapes enters optimizer; no pre-filtered single-type pass/fail.

@@ -26,6 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install -r requirements.txt
+          python -m py_compile research/line_patterns_20261025/audit_2025_low_actual_classes.py
           python -m unittest discover -s tests -v
           python -m unittest discover -s research/line_patterns_20261025 -p 'test_*.py' -v
           test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
@@ -80,3 +81,5 @@ jobs:
 # Re-run after restoring 2025 source rider names when legacy master is unknown.
 
 # Rerun after syntax fix in class-specific leaderboard accumulator.
+
+# Validated Python syntax before restoring historical archive.

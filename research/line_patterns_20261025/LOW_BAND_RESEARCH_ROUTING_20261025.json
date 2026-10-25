@@ -1,0 +1,61 @@
+{
+  "research_id": "URA_322_HIGH_FIRST_LOW_TRIAGE_20261025",
+  "scope": "RESEARCH_ONLY_NOT_PRODUCTION",
+  "date": "2026-10-25",
+  "source_portfolio": "strict_highfirst_110",
+  "baseline_train_years": [
+    "2023",
+    "2024"
+  ],
+  "retrospective_diagnosis": [
+    "2025",
+    "2026Q1",
+    "2026Q2"
+  ],
+  "warning": "Band pauses and tail cuts were chosen after examining the retrospective diagnosis; the same years are not independent validation for the cuts.",
+  "locked_models_modified": false,
+  "operational_prediction_or_web_modified": false,
+  "purchase_approved": false,
+  "next_prospective_period_required": true,
+  "low_bands": {
+    "0.00-0.25": {
+      "study_status": "PAUSE_ALT_LOGIC_RESEARCH",
+      "original_shapes": 1,
+      "research_high_first_prefix": 0,
+      "reason": "5 eligible hits / 1494 races in 2025-2026H1; extremely sparse"
+    },
+    "0.25-0.50": {
+      "study_status": "CONTINUE_HIGH_FIRST_CORE",
+      "original_shapes": 7,
+      "research_high_first_prefix": 4,
+      "hold_shapes_steps": [
+        5,
+        6,
+        7
+      ],
+      "reason": "Tail 5-7 realized 51.52% marginal ROI across 2025-2026H1 although profitable in train"
+    },
+    "0.50-0.75": {
+      "study_status": "PAUSE_THIS_HIGH_FIRST_LOGIC",
+      "original_shapes": 10,
+      "research_high_first_prefix": 0,
+      "reason": "2025-2026H1 ROI 83.34%, trim last alone still 89.50%; change logic separately"
+    },
+    "0.75-1.00": {
+      "study_status": "CONTINUE_HIGH_FIRST_CORE",
+      "original_shapes": 21,
+      "research_high_first_prefix": 20,
+      "hold_shapes_steps": [
+        21
+      ],
+      "reason": "Step21 realized 67.91% marginal ROI across 2025-2026H1; step20 retained after contrasting its contribution"
+    }
+  },
+  "no_change_to": [
+    "original_haruq",
+    "original_ura_haruq_v1",
+    "locked_2221",
+    "live_web",
+    "live_betting_rules"
+  ]
+}

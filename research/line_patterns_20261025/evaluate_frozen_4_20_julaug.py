@@ -160,11 +160,12 @@ def import_source(conn,source):
         n=int(race["entry_count"])
         audit["source_total_races"]+=1
         audit["source_7car" if n==7 else "source_other_car"]+=1
-        # To prevent silent contamination, source rows may not collide
-        # with the encrypted March 2026 archival database.
-        if conn.execute("SELECT 1 FROM races WHERE race_id=?",(rid,)).fetchone():
-            audit["history_race_id_collision"]+=1
-            continue
+        # Existing archived races are expected: this database goes through
+        # 2026-10-22. Use genuine archived pre-race entries and results only
+        # after independently confirming KDreams result and settlement.
+        existing=conn.execute(
+            "SELECT date,rider_count,velodrome FROM races WHERE race_id=?",(rid,)).fetchone()
+        if existing:audit["history_race_id_collision"]+=1
         rs=res[source_id];es=ent[source_id]
         winners=observed_result(rs,n)
         if winners is None or len(es)!=n or len({int(e["car_no"]) for e in es})!=n:
@@ -174,6 +175,50 @@ def import_source(conn,source):
         if len(win_pays)!=1 or len(match)!=1:
             audit["payout_not_unique_or_disagree"]+=1;continue
         payout=match[0]
+        if existing:
+            # NO replacement of original archived entries, lines or results.
+            if str(existing["date"])[:10]!=race["race_date"] or int(existing["rider_count"])!=n:
+                audit["existing_date_or_n_disagreement"]+=1;continue
+            prior=conn.execute(
+               "SELECT bike_number,rider_name,line_group,line_role FROM entries WHERE race_id=?",
+                (rid,)).fetchall()
+            if len(prior)!=n or {int(x["bike_number"]) for x in prior} != {int(x["car_no"]) for x in es}:
+                audit["existing_entry_roster_disagreement"]+=1;continue
+            expected_name={int(x["car_no"]):clean_name(x["player_name"]) for x in es}
+            if any(clean_name(x["rider_name"])!=expected_name.get(int(x["bike_number"]))
+                   for x in prior):
+                audit["existing_entry_name_disagreement"]+=1;continue
+            actual_data=conn.execute(
+               "SELECT bike_number,finish_position FROM race_results WHERE race_id=?",
+                (rid,)).fetchall()
+            historic=observed_result([{"car_no":str(x["bike_number"]),
+                                     "finish_position":str(x["finish_position"])}
+                                     for x in actual_data if x["finish_position"] is not None],n)
+            payout_hist=conn.execute(
+                "SELECT sanrentan_combo,sanrentan_payout FROM race_payouts WHERE race_id=?",
+                (rid,)).fetchone()
+            if historic!=winners or not payout_hist or not payout_hist["sanrentan_payout"]:
+                audit["existing_result_incomplete_or_disagree"]+=1;continue
+            histcombo="-".join(re.findall("[1-9]",str(payout_hist["sanrentan_combo"] or "")))
+            if histcombo!=winners or int(payout_hist["sanrentan_payout"])!=payout:
+                audit["existing_payout_disagreement"]+=1;continue
+            # Independently compare the two published line forecasts before
+            # scoring a 3-2-2 race; grouping labels are arbitrary.
+            def lineset(source_rows,bikekey,groupkey):
+                groups=defaultdict(set)
+                for x in source_rows:
+                    lg=x[groupkey]
+                    if lg is not None and str(lg).strip():
+                        groups[str(lg)].add(int(x[bikekey]))
+                return {frozenset(g) for g in groups.values()}
+            src_groups=lineset(es,"car_no","line_id")
+            his_groups=lineset(prior,"bike_number","line_group")
+            if sorted(map(len,src_groups),reverse=True)==[3,2,2] and (
+                 src_groups!=his_groups):
+                audit["existing_322_line_mismatch"]+=1;continue
+            audit["existing_independent_verified"]+=1
+            if n==7:eligible.append((rid,source_id,race["race_date"],payout,winners))
+            continue
         bike_to_id={}
         matched_count=0
         try:

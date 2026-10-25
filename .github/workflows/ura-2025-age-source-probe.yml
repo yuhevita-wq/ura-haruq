@@ -1,0 +1,25 @@
+name: research probe 2025 alternate source age field
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-2025-age-source-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Inspect preserved 2025 raw start lists headers without downloading full files
+        run: |
+          set -euo pipefail
+          for file in \
+            'data/a_class_12/2025_01_02/entries.csv' \
+            'data/a3_challenge/2025_01_02/entries.csv' \
+            'data/2025/s_class_f1_all_parts/2025_q1/entries.csv'; do
+            echo "SAMPLE_SOURCE=$file"
+            curl -fLsS --retry 3 --max-time 120 "https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/main/$file" | head -c 1500 || test "${PIPESTATUS[0]}" -eq 23
+            echo
+          done

@@ -32,20 +32,20 @@ class LowPortfolioTests(unittest.TestCase):
         self.assertLess(aggregate(rows,["b"])["roi_pct"],100)
 
     def test_2023_2024_select_near_profit_loss_types(self):
-        a=[case("2023",BANDS[1],"a",{"a":1,"b":1},80),
-           case("2023",BANDS[1],"a",{"a":1,"b":1},90),
-           case("2023",BANDS[1],"b",{"a":1,"b":1},80),
-           case("2023",BANDS[1],"b",{"a":1,"b":1},90)]
-        b=[case("2024",BANDS[1],"a",{"a":1,"b":1},70),
-           case("2024",BANDS[1],"a",{"a":1,"b":1},75),
-           case("2024",BANDS[1],"b",{"a":1,"b":1},70),
-           case("2024",BANDS[1],"b",{"a":1,"b":1},75)]
+        a=[case("2023",BANDS[1],"2H-2B-3B|12",{"2H-2B-3B|12":1,"2H-3H-3B|23":1},80),
+           case("2023",BANDS[1],"2H-2B-3B|12",{"2H-2B-3B|12":1,"2H-3H-3B|23":1},90),
+           case("2023",BANDS[1],"2H-3H-3B|23",{"2H-2B-3B|12":1,"2H-3H-3B|23":1},80),
+           case("2023",BANDS[1],"2H-3H-3B|23",{"2H-2B-3B|12":1,"2H-3H-3B|23":1},90)]
+        b=[case("2024",BANDS[1],"2H-2B-3B|12",{"2H-2B-3B|12":1,"2H-3H-3B|23":1},70),
+           case("2024",BANDS[1],"2H-2B-3B|12",{"2H-2B-3B|12":1,"2H-3H-3B|23":1},75),
+           case("2024",BANDS[1],"2H-3H-3B|23",{"2H-2B-3B|12":1,"2H-3H-3B|23":1},70),
+           case("2024",BANDS[1],"2H-3H-3B|23",{"2H-2B-3B|12":1,"2H-3H-3B|23":1},75)]
         shapes=select_band(a,b)["selected_types"]
-        self.assertEqual(set(shapes),{"a","b"})
+        self.assertEqual(set(shapes),{"2H-2B-3B|12","2H-3H-3B|23"})
 
     def test_screen_with_zero_hits_not_adopted(self):
-        a=[case("2023",BANDS[0],"a",{"a":1},500) for _ in range(3)]
-        b=[case("2024",BANDS[0],"a",{"a":1},0,win=False) for _ in range(3)]
+        a=[case("2023",BANDS[0],"2H-2B-3B|12",{"2H-2B-3B|12":1},500) for _ in range(3)]
+        b=[case("2024",BANDS[0],"2H-2B-3B|12",{"2H-2B-3B|12":1},0,win=False) for _ in range(3)]
         self.assertEqual(select_band(a,b)["selected_types"],[])
 
     def test_year_split_and_no_label_time_crossing(self):

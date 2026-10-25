@@ -87,7 +87,7 @@ def audit(input_csv,out):
          "The 2025 labeled original source was selected by LOW and full final 3-ren-tan odds before this class audit",
          "Race tiers are derived only from the original race-specific entry class, never from meeting grade",
          "2025 past results may overlap frozen HaruQ training.",
-         "No marketing/production workflow or purchase rule is affected."]}
+         "No marketing/production workflow or purchase rule is affected."]
     }
     (out/"2025_CLASS_SCOPE_CORRECTION_AUDIT.json").write_text(
        json.dumps(main,ensure_ascii=False,indent=2)+"\n",encoding="utf8")

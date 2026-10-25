@@ -74,12 +74,29 @@ jobs:
           assert x['frozen_haruq_sha256']=='e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193'
           print('JUL_AUG_HOLDOUT_VALID',[(z['period'],z['LOW_band'],z['races'],z['hits'],z['roi_pct']) for z in x['metrics']])
           PY
+      - name: Diagnose rider appearances and original URA rank/line-role misses (NO new purchase model)
+        run: |
+          set -euo pipefail
+          python -u -m research.line_patterns_20261025.rider_participation_study \
+            --ledger july_aug_4_20_results/per_race_fixed_policy_ledger.csv \
+            --out july_aug_rider_diagnostic
+          python - <<'PY'
+          import json
+          a=json.load(open('july_aug_rider_diagnostic/rider_diagnostic_audit.json'))
+          assert a['fixed_models_and_4_20_policy_unchanged']
+          assert a['research_only'] and not a['purchase_approved']
+          assert a['rider_exposure_count']==7*a['race_count']
+          assert a['miss_reasons']['active_low_band_races']>0
+          print('RIDER_DIAGNOSTIC_OK',a['race_count'],a['unique_riders'],a['miss_reasons'])
+          PY
       - name: Archive independent cohort result only, without private source data
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: ura-322-4-20-frozen-2026-july-august-S-F1-research-only
-          path: july_aug_4_20_results/
+          path: |
+            july_aug_4_20_results/
+            july_aug_rider_diagnostic/
           if-no-files-found: error
           retention-days: 90
       - name: Remove historical decrypted database and source copies

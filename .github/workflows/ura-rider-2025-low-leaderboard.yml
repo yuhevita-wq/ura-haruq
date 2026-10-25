@@ -1,0 +1,79 @@
+name: URA 2025 only LOW rank5-7 actual podium rider leaderboard
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-rider-2025-low-leaderboard.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  riders-2025:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test frozen original model and 2025-only underdog rider frequency study
+        run: |
+          set -euo pipefail
+          python -m pip install -r requirements.txt
+          python -m unittest discover -s tests -v
+          python -m unittest discover -s research/line_patterns_20261025 -p 'test_*.py' -v
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 40056803172
+          github-token: ${{ github.token }}
+          pattern: v3-year-*
+          merge-multiple: true
+          path: v3_input/
+      - name: Verify input
+        run: |
+          for y in 2023 2024 2025; do test -s "v3_input/year_$y.csv"; done
+      - name: Restore unmodified archive
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          mkdir -p fixed_inputs db
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D fixed_inputs/
+          (cd fixed_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt)
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt fixed_inputs/keirin-history.sqlite.gpg
+          (cd db && sha256sum -c ../fixed_inputs/PLAINTEXT_SHA256.txt)
+      - name: 2025 ONLY rider exposure (all seven-car LOW and separate 3-2-2 cohort)
+        run: |
+          set -euo pipefail
+          python -u -m research.line_patterns_20261025.rider_low_rank_2025_only --input v3_input/year_2025.csv --out 2025_low_rider_leaderboard
+          test -s 2025_low_rider_leaderboard/2025_7car_LOW_10plus_ranked_leaderboard.csv
+          test -s 2025_low_rider_leaderboard/2025_322_LOW_5plus_ranked_leaderboard.csv
+          python - <<'PY'
+          import json
+          j=json.load(open('2025_low_rider_leaderboard/2025_only_rider_rank_audit.json'))
+          assert j['source_year_only']==2025
+          assert j['research_only'] and not j['purchase_approved']
+          assert j['2025_source_labels']==6507
+          assert j['cohort_summary']['all_7car_LOW']['races'] >= j['cohort_summary']['322_7car_LOW']['races'] > 2000
+          assert j['cohort_summary']['all_7car_LOW']['rider_low_rank_starts']==3*j['cohort_summary']['all_7car_LOW']['races']
+          assert j['cohort_summary']['322_7car_LOW']['rider_low_rank_starts']==3*j['cohort_summary']['322_7car_LOW']['races']
+          print('VALID_2025_RIDERS',j['cohort_summary'],flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ura-2025-ONLY-low-rank-5to7-rider-podium-frequency-study
+          path: 2025_low_rider_leaderboard/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Delete decrypted archive
+        if: always()
+        run: rm -f db/keirin.db fixed_inputs/keirin-history.sqlite.gpg

@@ -3,8 +3,10 @@ import argparse,csv,json,math
 from collections import Counter,defaultdict
 from pathlib import Path
 
-from research.line_patterns_20261025.rider_low_rank_2025_only import wilson_lower
-from research.line_patterns_20261025.full_2025_historical_player_universe import OUTPUT_COLUMNS
+def wilson_lower(k,n,z=1.959963984540054):
+    if n<=0 or k<=0:return 0.0
+    p=k/n
+    return max(0.,(p+z*z/(2*n)-z*math.sqrt(p*(1-p)/n+z*z/(4*n*n)))/(1+z*z/n))
 
 def readcsv(path):
     with Path(path).open(newline="",encoding="utf8") as f:return list(csv.DictReader(f))
@@ -106,7 +108,7 @@ def aggregate(input_dir,out_dir):
     if cols:writecsv(out/"2025_all_source_players_by_actual_class_field_and_low.csv",leaders,cols)
     writecsv(out/"2025_source_all_original_races_and_status.csv",race_census,
              list(dict.fromkeys(k for r in race_census for k in r)))
-    writecsv(out/"2025_all_source_scored_rider_exposure.csv",all_exposures,OUTPUT_COLUMNS)
+    writecsv(out/"2025_all_source_scored_rider_exposure.csv",all_exposures,list(all_exposures[0]) if all_exposures else [])
 
     main=[r for r in leaders if r["field_scope"]=="7CAR" and
           r["confidence_scope"]=="LOW"]

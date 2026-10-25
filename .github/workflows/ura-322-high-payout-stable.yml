@@ -1,0 +1,103 @@
+name: URA 3-2-2 LOW high-payout stable type study
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-322-high-payout-stable.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 95
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test unchanged source model, old and new LOW-portfolio studies
+        run: |
+          set -euo pipefail
+          python -m pip install -r requirements.txt
+          python -m unittest discover -s tests -v
+          python -m unittest discover -s research/line_patterns_20261025 -p 'test_*.py' -v
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+      - name: Get frozen 2023-2025 original V3 qualified labels
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40056803172
+          github-token: ${{ github.token }}
+          pattern: v3-year-*
+          merge-multiple: true
+          path: v3_input/
+      - name: Verify labeled historical source
+        run: |
+          set -euo pipefail
+          for y in 2023 2024 2025; do test -s "v3_input/year_$y.csv"; done
+      - name: Restore original signed model and encrypted archive read-only
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          mkdir -p fixed_inputs db
+          gh release download haruqube-20260321-flagship-v1 --repo yuhevita-wq/haruq -p haruqube_20260321_fresh_model.pkl -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D fixed_inputs/
+          (cd fixed_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt)
+          test "$(sha256sum fixed_inputs/haruqube_20260321_fresh_model.pkl | cut -d' ' -f1)" = e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt fixed_inputs/keirin-history.sqlite.gpg
+          (cd db && sha256sum -c ../fixed_inputs/PLAINTEXT_SHA256.txt)
+      - name: Restore genuine archived final odds for 2026H1 (read-only)
+        run: |
+          set -euo pipefail
+          curl -fLSs --retry 4 --max-time 240 -o fixed_inputs/odds_2026.jsonl.gz https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/main/data/odds_only/odds_2026.jsonl.gz
+          gzip -t fixed_inputs/odds_2026.jsonl.gz
+          test "$(sha256sum fixed_inputs/odds_2026.jsonl.gz | cut -d' ' -f1)" = 90a8ed4eb65ec1dc310698bcf08121965764b63750c6560edd9734869e8f6e94
+      - name: Reconstruct historical 2026H1 frozen LOW ranks
+        run: |
+          set -euo pipefail
+          python -u -m research.line_patterns_20261025.extract_2026 --model fixed_inputs/haruqube_20260321_fresh_model.pkl --odds fixed_inputs/odds_2026.jsonl.gz --out year26
+      - name: Audit payout median and stability for all 66 roles then filter and combine
+        run: |
+          set -euo pipefail
+          python -u -m research.line_patterns_20261025.high_payout_stability --input v3_input --year26 year26/year_2026H1.csv --out high_payout_stability/
+          python - <<'PY'
+          import json
+          x=json.load(open("high_payout_stability/method_and_results.json"))
+          assert x["frozen_haruq_untouched"] and x["frozen_ura_untouched"]
+          assert x["frozen_2221_untouched"] and not x["purchase_approved"]
+          assert len(x["LOW_2023_thresholds"])==4
+          assert x["tested_structure_count"]==66
+          assert len(x["comparison_ROI_all_low"])==20
+          assert all(x["policies"][b]["filtered"][v]["train_profit_2023_yen"]>=0 for b in x["LOW_2023_thresholds"] for v in ["profit","coverage"])
+          assert all(x["policies"][b]["filtered"][v]["train_profit_2024_yen"]>=0 for b in x["LOW_2023_thresholds"] for v in ["profit","coverage"])
+          print("PAYOUT_STABILITY_VALID",[(r["year"],r["strategy"],r["roi_pct"]) for r in x["comparison_ROI_all_low"]], flush=True)
+          PY
+      - name: Archive all type occurrence, median payout, ticket costs and research portfolios
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ura-322-LOW-payout-median-stability-2023to2026-research
+          path: |
+            high_payout_stability/
+            year26/extract_2026_audit.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Delete decrypted archives and input copies
+        if: always()
+        run: |
+          rm -f db/keirin.db fixed_inputs/keirin-history.sqlite.gpg fixed_inputs/haruqube_20260321_fresh_model.pkl fixed_inputs/odds_2026.jsonl.gz
+
+# 2026-10-25: candidate scope restricted to 12/23/13 same-line pair geometries; unchanged frozen baseline.
+
+# Exact MILP profit and coverage selection, no cardinality cap; never deployed.
+
+# Historical 2023-only payout thresholds; 2024 stability; no hindsight cheap-result deletion.

@@ -29,7 +29,7 @@ MIN_RECORDS_FOR_SECONDARY = 5
 
 
 def wilson_lower(k,n,z=1.959963984540054):
-    if n == 0: return 0.0
+    if n == 0 or k == 0: return 0.0
     p=k/n
     den=1+z*z/n
     return max(0.0,((p+z*z/(2*n))-z*math.sqrt(p*(1-p)/n+z*z/(4*n*n)))/den)

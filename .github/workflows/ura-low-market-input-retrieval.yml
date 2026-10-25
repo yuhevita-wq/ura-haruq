@@ -1,0 +1,65 @@
+name: Research LOW information decomposition data inputs 2025 2026
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-low-market-input-retrieval.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  materialize-auditable-inputs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve archived published 3ren-tan and 3ren-fuku complete FINAL odds 2025 and 2026-H1
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          for year in 2025 2026; do
+            curl -fL --retry 5 --retry-delay 2 --connect-timeout 30 --max-time 360 -sS \
+             "https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/main/data/odds_only/odds_${year}.jsonl.gz" \
+             -o "source/odds_${year}.jsonl.gz"
+            gzip -t "source/odds_${year}.jsonl.gz"
+            sha256sum "source/odds_${year}.jsonl.gz" | tee -a source/SOURCE_SHA256.txt
+          done
+          cat source/SOURCE_SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: low-market-2025-and-2026H1-original-complete-final-odds-UNEDITED
+          path: source/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 90
+      - name: Import all 10 2026 already-built frozen rank monthly shards
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40199880608
+          github-token: ${{ github.token }}
+          pattern: ura-2026-frozen-rank-full-month-*
+          merge-multiple: true
+          path: 2026_rank_full/
+      - name: Confirm all ten 2026 months and count ranks
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv,glob,json
+          files=glob.glob("2026_rank_full/rider_exposures_*.csv")
+          audits=glob.glob("2026_rank_full/audit_*.json")
+          assert len(files)==10 and len(audits)==10,(len(files),len(audits))
+          rows=0
+          for path in files:
+            with open(path) as f:
+              this=sum(1 for _ in csv.DictReader(f))
+            rows+=this
+          print("REUSED_2026_MONTHS",len(files),"RIDERS",rows)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: low-market-2026-ALL-10-month-frozen-original-rank-and-results-UNEDITED
+          path: 2026_rank_full/
+          compression-level: 7
+          if-no-files-found: error
+          retention-days: 90

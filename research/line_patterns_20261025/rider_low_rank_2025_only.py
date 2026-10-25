@@ -91,6 +91,15 @@ def read_one_2025_race(conn,row,audit):
     return out
 
 
+def select_name(entry_name, master_name):
+    missing={"", "unknown", "none", "null", "不明", "-", "nan"}
+    a=str(entry_name or "").strip()
+    b=str(master_name or "").strip()
+    if a.lower() not in missing:return a
+    if b.lower() not in missing:return b
+    return a or b
+
+
 def make_exposures(races):
     exposures=[]
     for r in races:
@@ -110,7 +119,7 @@ def make_exposures(races):
             exposures.append({
                 "race_id":r["race_id"],"date":r["date"],"half":"H1" if r["date"]<"2025-07-01" else "H2",
                 "LOW_band":r["LOW_band"],"is_322":int(r["is_322"]),
-                "rider_id":str(e["rider_id"]),"name":str(e["official_name"] or e["rider_name"] or ""),
+                "rider_id":str(e["rider_id"]),"name":select_name(e["rider_name"],e["official_name"]),
                 "prefecture":str(e["prefecture"] or ""),
                 "bike_number":bike,"ura_rank":rank,"line_role":position_in_line,
                 "finish_position":pos or "",

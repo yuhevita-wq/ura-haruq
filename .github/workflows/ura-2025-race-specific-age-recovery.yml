@@ -1,0 +1,82 @@
+name: URA 2025 recover ACTUAL age from 16 original 2025 archived source sheets
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-2025-race-specific-age-recovery.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  join-original-age:
+    runs-on: ubuntu-latest
+    timeout-minutes: 85
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Preflight source merge and original model unchanged
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m py_compile research/line_patterns_20261025/recover_2025_age_from_historical_entries.py
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+      - name: Load frozen 40k cohort + original 2025 race-bike IDs
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40182273610
+          github-token: ${{ github.token }}
+          name: ura-2025-original-all-40k-low-rider-AGE-SCORE-covariate-joined
+          path: joined_input/
+      - name: Load complete original 2025 rider IDs
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40177278424
+          github-token: ${{ github.token }}
+          name: ura-2025-PROPER-FULL-ARCHIVE-A-S-A3-ALL-RIDER-STATS
+          path: historic_full/
+      - name: Retrieve ALL known A12 A3 and S F1 original 2025 entries with age
+        run: |
+          set -euo pipefail
+          mkdir -p source_age joined
+          base=https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/f7f52ec88f59ba8a8394b132fb10c888909b0e85
+          for pair in 01_02 03_04 05_06 07_08 09_10 11_12; do
+            curl -fL --retry 5 --retry-delay 2 --connect-timeout 30 --max-time 400 -sS "$base/data/a_class_12/2025_$pair/entries.csv" -o "source_age/A12_$pair.csv"
+            curl -fL --retry 5 --retry-delay 2 --connect-timeout 30 --max-time 400 -sS "$base/data/a3_challenge/2025_$pair/entries.csv" -o "source_age/A3_$pair.csv"
+          done
+          for q in q1 q2 q3 q4; do
+            curl -fL --retry 5 --retry-delay 2 --connect-timeout 30 --max-time 400 -sS "$base/data/2025/s_class_f1_all_parts/2025_$q/entries.csv" -o "source_age/S_$q.csv"
+          done
+          test "$(find source_age -name '*.csv' | wc -l)" -eq 16
+          for p in source_age/*.csv; do test -s "$p"; sha256sum "$p"; done
+      - name: Join only exact historical same-race same-bike and same-name rider ages
+        run: |
+          set -euo pipefail
+          cp historic_full/2025_all_source_scored_rider_exposure.csv joined_input/
+          python -u -m research.line_patterns_20261025.recover_2025_age_from_historical_entries \
+            --source joined_input/2025_underdog_WITH_AGE_SCORE.csv \
+            --ages source_age --out joined
+          python - <<'PY'
+          import json
+          j=json.load(open('joined/2025_race_age_join_audit.json'))
+          assert j['original_frozen_exposures']==40851
+          assert j['original_frozen_races']==13617
+          assert j['research_only'] and not j['models_modified']
+          print('2025_AGE_JOINS',j['age_join_audit'])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ura-2025-UNDERDOG-TRUE-AGE-REAL-ORIGINAL-SCORE-joined
+          path: joined/
+          retention-days: 90
+          if-no-files-found: error
+      - name: Remove original large 2025 raw source after age extraction
+        if: always()
+        run: rm -rf source_age historic_full joined_input

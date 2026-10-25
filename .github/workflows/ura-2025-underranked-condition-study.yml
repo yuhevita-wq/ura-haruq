@@ -1,0 +1,58 @@
+name: 2025 frozen LOW underdog conditions H1 discovery H2 validation
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-2025-underranked-condition-study.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  rank5to7-discovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install only study dependencies, verify script syntax
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check numpy pandas
+          python -m py_compile research/line_patterns_20261025/discover_2025_underranked_conditions.py
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+      - name: Restore original all-grade all-2025 corpus, NOT V3 odds prefiltered CSV
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40177278424
+          github-token: ${{ github.token }}
+          name: ura-2025-PROPER-FULL-ARCHIVE-A-S-A3-ALL-RIDER-STATS
+          path: full_source/
+      - name: Find H1 underdog pre-start conditions, fixed H2 validation
+        run: |
+          set -euo pipefail
+          test -s full_source/2025_all_source_scored_rider_exposure.csv
+          python -u -m research.line_patterns_20261025.discover_2025_underranked_conditions \
+            --input full_source/2025_all_source_scored_rider_exposure.csv \
+            --out research_results/
+          python - <<'PY'
+          import json
+          x=json.load(open('research_results/study_manifest.json'))
+          assert x['original_history_races']==26004
+          assert x['original_frozen_scored_races']==24141
+          assert x['primary_races_7car_LOW']==13617
+          assert x['primary_under_rank_exposures']==40851
+          assert not x['model_modified'] and not x['formation_modified']
+          assert len(x['train_only_condition_selection_top8'])==8
+          print('2025_CONDITIONS_AUDIT_PASSED',x['train_only_condition_selection_top8'])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ura-2025-full-13k-low-races-underrated-player-pre-race-conditions-H1-H2
+          path: research_results/
+          retention-days: 90
+          compression-level: 7
+          if-no-files-found: error

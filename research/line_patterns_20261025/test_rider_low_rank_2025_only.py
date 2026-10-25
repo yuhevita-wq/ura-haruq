@@ -1,9 +1,13 @@
 import unittest
 from research.line_patterns_20261025.rider_low_rank_2025_only import (
-    wilson_lower, stats, make_exposures, per_rider, split_by_band
+    wilson_lower, stats, make_exposures, per_rider, split_by_band, select_name
 )
 
 class RiderOnly2025Tests(unittest.TestCase):
+    def test_real_2025_entry_name_over_old_unknown_master(self):
+        self.assertEqual(select_name("庄子信弘","unknown"),"庄子信弘")
+        self.assertEqual(select_name("unknown","庄子信弘"),"庄子信弘")
+
     def test_interval_wilson(self):
         self.assertEqual(wilson_lower(0,0),0)
         self.assertEqual(wilson_lower(0,100),0)

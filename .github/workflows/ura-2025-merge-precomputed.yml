@@ -1,0 +1,53 @@
+name: MERGE VERIFIED 2025 full-history monthly rider outputs only
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-2025-merge-precomputed.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  aggregate-all-twelve-precomputed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download exactly 12 real 2025 monthly artifacts from executed full scan
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40176936540
+          github-token: ${{ github.token }}
+          pattern: ura-2025-full-month-*
+          merge-multiple: true
+          path: year2025_precomputed_months/
+      - name: Merge all archived 2025 race records with zero grade/LOW/7-car source cuts
+        run: |
+          set -euo pipefail
+          python -m py_compile research/line_patterns_20261025/merge_full_2025_player_universe.py
+          python -u -m research.line_patterns_20261025.merge_full_2025_player_universe \
+             --input year2025_precomputed_months --out year2025_all_rider_classes
+          python - <<'PY'
+          import json
+          a=json.load(open('year2025_all_rider_classes/2025_FULL_UNIVERSE_AUDIT.json'))
+          assert a['months_received']==12
+          assert a['all_original_2025_race_rows'] > 6507
+          assert a['original_source_audit']['evaluated_all_low_high_races']>6507
+          assert a['models_modified'] is False
+          assert len(a['top10_2025_7car_LOW_by_class']['A級1・2班']) > 0
+          assert len(a['top10_2025_7car_LOW_by_class']['チャレンジA3']) > 0
+          print('FULL_YEAR_2025_PASSED',a['all_original_2025_race_rows'],
+               a['original_source_audit']['evaluated_all_low_high_races'])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ura-2025-PROPER-FULL-ARCHIVE-A-S-A3-ALL-RIDER-STATS
+          path: year2025_all_rider_classes/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 7

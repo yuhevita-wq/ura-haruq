@@ -46,7 +46,7 @@ def audit(input_csv,out):
         raise RuntimeError("Frozen 2025 study population was silently changed")
     by_tier=[]
     player_rows=[]
-    322_rows=[]
+    rows_322=[]
     for tier in sorted(matched_counts):
         selected=[e for e in exposures if next(x for x in races if x["race_id"]==e["race_id"])["tier"]==tier]
         sub_322=[e for e in selected if e["is_322"]]
@@ -55,7 +55,7 @@ def audit(input_csv,out):
         for entry in p:
             player_rows.append({"tier":tier,**entry})
         for entry in p322:
-            322_rows.append({"tier":tier,**entry})
+            rows_322.append({"tier":tier,**entry})
         by_tier.append({"tier":tier,"races":len(selected)//3,
           "races_322":len(sub_322)//3,"low_rank_appearances":len(selected),
           "low_rank_top3":sum(x["top3"] for x in selected),
@@ -65,7 +65,7 @@ def audit(input_csv,out):
           "riders_low5plus_322":sum(x["low_rank_starts"]>=5 for x in p322)})
     out=Path(out);out.mkdir(parents=True,exist_ok=True)
     if player_rows:write_csv(out/"2025_7car_LOW_players_SPLIT_BY_CLASS.csv",player_rows)
-    if 322_rows:write_csv(out/"2025_322_LOW_players_SPLIT_BY_CLASS.csv",322_rows)
+    if rows_322:write_csv(out/"2025_322_LOW_players_SPLIT_BY_CLASS.csv",rows_322)
     grade_rows=[{"class_from_entries":t,"grade_on_source":g,"races":n}
                 for (t,g),n in sorted(t_by_grade.items())]
     write_csv(out/"2025_7car_LOW_CLASS_VS_GRADE.csv",grade_rows)

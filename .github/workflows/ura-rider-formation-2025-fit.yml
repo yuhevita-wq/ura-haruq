@@ -1,0 +1,78 @@
+name: Research 2025 only rider formation fit and lock
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-rider-formation-2025-fit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  join:
+    runs-on: ubuntu-latest
+    timeout-minutes: 85
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Preflight exact no-modification scorer and frozen model
+        run: |
+          set -euo pipefail
+          python -m py_compile research/line_patterns_20261025/rider_formations_train2025_test2026.py
+          python -m pip install -r requirements.txt
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+      - name: Load 2025 all rider ranks and results
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40177278424
+          github-token: ${{ github.token }}
+          name: ura-2025-PROPER-FULL-ARCHIVE-A-S-A3-ALL-RIDER-STATS
+          path: frozen_2025/
+      - name: Restore signed ORIGINAL database (no posthoc labels joined)
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          mkdir -p db fixed_inputs
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D fixed_inputs/
+          (cd fixed_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt)
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt fixed_inputs/keirin-history.sqlite.gpg
+          (cd db && sha256sum -c ../fixed_inputs/PLAINTEXT_SHA256.txt)
+      - name: Export entire 2025 race settlement from original signed archive
+        run: |
+          python - <<'PY'
+          import csv, sqlite3
+          conn=sqlite3.connect('db/keirin.db')
+          rows=conn.execute("SELECT r.race_id,p.sanrentan_combo,p.sanrentan_payout FROM races r LEFT JOIN race_payouts p ON p.race_id=r.race_id WHERE r.date>='2025-01-01' AND r.date<'2026-01-01' ORDER BY r.race_id").fetchall()
+          assert len(rows)==26004
+          with open("frozen_2025/original_2025_payouts.csv","w",newline="") as f:
+              w=csv.writer(f);w.writerow(["race_id","sanrentan_combo","sanrentan_payout"]);w.writerows(rows)
+          print("2025_ORIGINAL_PAYOUT_ROWS",len(rows))
+          PY
+      - name: Fit on Jan-Sep 2025 and select policy on Oct-Dec 2025, no 2026 labels
+        run: |
+          set -euo pipefail
+          python -u -m research.line_patterns_20261025.rider_formations_train2025_test2026 fit \
+            --exposures frozen_2025/2025_all_source_scored_rider_exposure.csv \
+            --payouts frozen_2025/original_2025_payouts.csv --out frozen_policy_2025
+          sha256sum frozen_policy_2025/SEALED_2025_RIDER_FORMATION_POLICY.json
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ura-2025-only-SEALED-rider-formation-strategy
+          path: frozen_policy_2025/
+          retention-days: 90
+          if-no-files-found: error
+      - name: Erase original decrypted history
+        if: always()
+        run: |
+          rm -f db/keirin.db db/keirin.db-wal db/keirin.db-shm
+          rm -f fixed_inputs/keirin-history.sqlite.gpg

@@ -270,7 +270,8 @@ def main_run(labeldir,year26,outdir):
                              ("portfolio_training_selection_frontier.csv",baseline)):
         with (out/filename).open("w",newline="",encoding="utf8") as f:
             if content:
-                w=csv.DictWriter(f,fieldnames=list(content[0]));w.writeheader();w.writerows(content)
+                fields=list(dict.fromkeys(k for row in content for k in row))
+                w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(content)
     print("LOW_GLOBAL_PORTFOLIO_RESULT",json.dumps({
       "cutoffs":{b:manifest["selection"][b]["reference"] for b in BANDS},
       "selected":{b:{k:{"count":v["type_count"],"types":v["types"]}

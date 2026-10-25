@@ -1,0 +1,80 @@
+name: AUDIT 2025 LOW S A challenge source classes, do not infer from race grade
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/audit-2025-low-class-scope.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit-2025-class:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test frozen original model and 2025-only underdog rider frequency study
+        run: |
+          set -euo pipefail
+          python -m pip install -r requirements.txt
+          python -m unittest discover -s tests -v
+          python -m unittest discover -s research/line_patterns_20261025 -p 'test_*.py' -v
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 40056803172
+          github-token: ${{ github.token }}
+          pattern: v3-year-*
+          merge-multiple: true
+          path: v3_input/
+      - name: Verify input
+        run: |
+          for y in 2023 2024 2025; do test -s "v3_input/year_$y.csv"; done
+      - name: Restore unmodified archive
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          mkdir -p fixed_inputs db
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D fixed_inputs/
+          (cd fixed_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt)
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt fixed_inputs/keirin-history.sqlite.gpg
+          (cd db && sha256sum -c ../fixed_inputs/PLAINTEXT_SHA256.txt)
+      - name: Original archived 2025 entries class-based audit and class-separated rider lists
+        run: |
+          set -euo pipefail
+          python -u -m research.line_patterns_20261025.audit_2025_low_actual_classes --input v3_input/year_2025.csv --out 2025_grade_class_audit
+          test -s 2025_grade_class_audit/2025_CLASS_SCOPE_CORRECTION_AUDIT.json
+          test -s 2025_grade_class_audit/2025_7car_LOW_CLASS_VS_GRADE.csv
+          python - <<'PY'
+          import json
+          j=json.load(open('2025_grade_class_audit/2025_CLASS_SCOPE_CORRECTION_AUDIT.json'))
+          assert j['2025_v3_input_count']==6507 and j['races_7car_LOW']==4866
+          assert sum(j['class_race_totals'].values())==4866
+          assert j['research_only'] and j['original_haruq_ura_unmodified']
+          print('VALID_2025_CLASS_AUDIT',j['class_race_totals'],flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ura-2025-low-rank-rider-source-S-A-Challenge-class-AUDIT
+          path: 2025_grade_class_audit/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Delete decrypted archive
+        if: always()
+        run: rm -f db/keirin.db fixed_inputs/keirin-history.sqlite.gpg
+
+# Re-run after exact zero-hit confidence-bound numerical corner case fix.
+
+# Re-run after restoring 2025 source rider names when legacy master is unknown.

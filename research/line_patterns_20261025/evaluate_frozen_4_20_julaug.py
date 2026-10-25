@@ -249,7 +249,7 @@ def bootstrap_by_days(ledger):
     per=defaultdict(lambda:[0,0])
     for r in ledger:
         key=r["date"]
-        per[key][0]+=r["invested_yen"]
+        per[key][0]+=100*r["points"]
         per[key][1]+=r["returned_yen"]
     if len(per)<3 or sum(z[0] for z in per.values())==0:return None
     a=np.asarray(list(per.values()),dtype=float)

@@ -1,0 +1,75 @@
+name: URA 2025 player age and score covariates from original signed historical DB
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-2025-age-score-covariates.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  join:
+    runs-on: ubuntu-latest
+    timeout-minutes: 85
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Preflight exact no-modification scorer and frozen model
+        run: |
+          set -euo pipefail
+          python -m py_compile research/line_patterns_20261025/attach_2025_age_score.py
+          python -m pip install -r requirements.txt
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+      - name: Load ORIGINAL full 2025 H1/H2 40,851 rank5-7 exposures; no cherry-picking
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40178812827
+          github-token: ${{ github.token }}
+          name: ura-2025-full-13k-low-races-underrated-player-pre-race-conditions-H1-H2
+          path: selected_prior_exposures/
+      - name: Restore signed ORIGINAL database (no posthoc labels joined)
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          mkdir -p db fixed_inputs
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D fixed_inputs/
+          (cd fixed_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt)
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt fixed_inputs/keirin-history.sqlite.gpg
+          (cd db && sha256sum -c ../fixed_inputs/PLAINTEXT_SHA256.txt)
+      - name: Join exact frozen rider entries with age and competition score
+        run: |
+          set -euo pipefail
+          python -u -m research.line_patterns_20261025.attach_2025_age_score \
+            --source selected_prior_exposures/2025_all_7car_LOW_underdog_exposures_and_PRIOR_FORM.csv \
+            --out 2025_age_score_join
+          python - <<'PY'
+          import json
+          j=json.load(open("2025_age_score_join/age_score_join_audit.json"))
+          assert j['cohort_rows']==40851
+          assert j['found_matching_original_entries']==40851
+          assert j['matched_distinct_races']==13617
+          assert j['model_or_formations_changed']==False
+          print('COVARIATE_JOIN_VERIFIED',j)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ura-2025-original-all-40k-low-rider-AGE-SCORE-covariate-joined
+          path: 2025_age_score_join/
+          retention-days: 90
+          if-no-files-found: error
+      - name: Erase original decrypted history
+        if: always()
+        run: |
+          rm -f db/keirin.db db/keirin.db-wal db/keirin.db-shm
+          rm -f fixed_inputs/keirin-history.sqlite.gpg

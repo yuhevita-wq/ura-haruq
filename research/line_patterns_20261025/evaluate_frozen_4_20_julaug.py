@@ -407,6 +407,8 @@ def evaluate(model_file,policy_file,source_dir,out_dir):
                 "date":day,"period":day[:7],"LOW_band":interval,
                 "gap":round(gap,8),
                 "selected_type_count":len(wanted),
+                "ura_ranked_bikes":"-".join(str(ranked[i]["bike_number"]) for i in chosen_order),
+                "haruq_ranked_bikes":"-".join(str(q["bike_number"]) for q in ranked),
                 "points":ticket_count,"invested_yen":100*ticket_count,
                 "hit":int(win),"returned_yen":payout if win else 0,
                 "actual_combo":winner,"official_3rentan_payout_yen":payout,

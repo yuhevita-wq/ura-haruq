@@ -93,3 +93,5 @@ jobs:
         if: always()
         run: |
           rm -f db/keirin.db fixed_inputs/keirin-history.sqlite.gpg fixed_inputs/haruqube_20260321_fresh_model.pkl fixed_inputs/odds_2026.jsonl.gz
+
+# 2026-10-25: candidate scope restricted to 12/23/13 same-line pair geometries; unchanged frozen baseline.

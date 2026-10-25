@@ -109,3 +109,5 @@ jobs:
 # Re-run after paired-day bootstrap stake contract correction.
 
 # Existing overlapping source races are audited and evaluated without overwriting entries/results.
+
+# Rider reason ledger column compatibility corrected; restart same fixed 4/20 study.

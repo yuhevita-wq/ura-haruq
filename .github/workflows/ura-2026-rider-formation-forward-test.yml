@@ -1,0 +1,110 @@
+name: RESEARCH 2026 forward test three sealed 2025 rider formation strategies
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-2026-rider-formation-forward-test.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: ura-2026-forward-rider-formation-test
+  cancel-in-progress: false
+jobs:
+  month:
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        month: [1,2,3,4,5,6,7,8,9,10]
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONUNBUFFERED: "1"
+      MONTH: ${{ matrix.month }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Assert full source code syntax and original unchanged model
+        run: |
+          set -euo pipefail
+          python -m py_compile research/line_patterns_20261025/test_2026_three_precommitted_rider_formations.py
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m unittest discover -s tests -v
+      - name: Load 2025-ONLY sealed policy and tuning grid
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40199730879
+          github-token: ${{ github.token }}
+          name: ura-2025-only-SEALED-rider-formation-strategy
+          path: precommitted_2025/
+      - name: Download this exact 2026 month WITHOUT model retraining
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40199880608
+          github-token: ${{ github.token }}
+          name: ura-2026-frozen-rank-full-month-${{ matrix.month }}
+          path: single_2026_month/
+      - name: Restore full original encrypted historical DB and unmodified frozen ranker
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          mkdir -p db fixed_inputs monthly_out
+          gh release download haruqube-20260321-flagship-v1 --repo yuhevita-wq/haruq -p haruqube_20260321_fresh_model.pkl -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p keirin-history.sqlite.gpg -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p ENCRYPTED_SHA256SUMS.txt -D fixed_inputs/
+          gh release download haruqube-20260321-history-cache-live --repo yuhevita-wq/haruq -p PLAINTEXT_SHA256.txt -D fixed_inputs/
+          (cd fixed_inputs && sha256sum -c ENCRYPTED_SHA256SUMS.txt)
+          test "$(sha256sum fixed_inputs/haruqube_20260321_fresh_model.pkl | cut -d' ' -f1)" = e70690f4538b77e927a042e7ae2db312f8a0a4f16bf72def37e7ccad3568c193
+          printf '%s' "$COLLECTOR_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt fixed_inputs/keirin-history.sqlite.gpg
+          (cd db && sha256sum -c ../fixed_inputs/PLAINTEXT_SHA256.txt)
+      - name: Export actual 2026 settled trifecta payout for this month
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import sqlite3,csv,os
+          c=sqlite3.connect("db/keirin.db")
+          month=int(os.environ["MONTH"])
+          begin=f"2026-{month:02d}-01"
+          end=f"2026-{month+1:02d}-01" if month<12 else "2027-01-01"
+          rows=c.execute("""SELECT r.race_id,p.sanrentan_combo,p.sanrentan_payout
+              FROM races r LEFT JOIN race_payouts p ON p.race_id=r.race_id
+              WHERE r.date>=? AND r.date<? ORDER BY r.race_id""",(begin,end)).fetchall()
+          assert rows
+          with open("single_2026_month/original_2026_payouts.csv","w",newline="") as f:
+              w=csv.writer(f);w.writerow(["race_id","sanrentan_combo","sanrentan_payout"]);w.writerows(rows)
+          print("FULL_2026_RACE_PAYMENTS",month,len(rows))
+          PY
+      - name: Compare three strategies frozen using 2025 ONLY, score one 2026 month
+        run: |
+          set -euo pipefail
+          python -m py_compile research/line_patterns_20261025/test_2026_three_precommitted_rider_formations.py
+          python -u -m research.line_patterns_20261025.test_2026_three_precommitted_rider_formations \
+            --exposures "single_2026_month/rider_exposures_$(printf '%02d' "$MONTH").csv" \
+            --payouts single_2026_month/original_2026_payouts.csv \
+            --policy precommitted_2025/SEALED_2025_RIDER_FORMATION_POLICY.json \
+            --grid precommitted_2025/2025_Q4_FORMATION_POLICY_SEARCH_ALL.csv \
+            --out 2026_out
+          test -s 2026_out/2026_3WAY_MONTHLY_VALIDATION_AUDIT.json
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ura-2026-PRE2026-rider-formation-forward-month-${{ matrix.month }}
+          path: 2026_out/
+          compression-level: 6
+          retention-days: 90
+          if-no-files-found: error
+      - name: Destroy decrypt copy of original history and model
+        if: always()
+        run: |
+          rm -f db/keirin.db db/keirin.db-wal db/keirin.db-shm
+          rm -f fixed_inputs/keirin-history.sqlite.gpg fixed_inputs/haruqube_20260321_fresh_model.pkl

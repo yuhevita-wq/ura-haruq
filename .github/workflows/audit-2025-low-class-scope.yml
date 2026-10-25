@@ -78,3 +78,5 @@ jobs:
 # Re-run after exact zero-hit confidence-bound numerical corner case fix.
 
 # Re-run after restoring 2025 source rider names when legacy master is unknown.
+
+# Rerun after syntax fix in class-specific leaderboard accumulator.

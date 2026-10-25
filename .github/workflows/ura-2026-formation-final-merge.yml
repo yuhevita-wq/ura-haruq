@@ -1,0 +1,49 @@
+name: FINAL RESEARCH 2026 ROI three 2025-frozen rider formations
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ura-2026-formation-final-merge.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  aggregate-all-twelve-precomputed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Import TEN original scored 2026 formation months
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40200196151
+          github-token: ${{ github.token }}
+          pattern: ura-2026-PRE2026-rider-formation-forward-month-*
+          merge-multiple: false
+          path: forward_2026_10_months/
+      - name: Confirm exactly ten months; sum 2026 Jan-Sep vs partial Oct separately
+        run: |
+          set -euo pipefail
+          python -m py_compile research/line_patterns_20261025/merge_2026_rider_formation_three_way.py
+          python -u -m research.line_patterns_20261025.merge_2026_rider_formation_three_way \
+            --input forward_2026_10_months --out 2026_2025_personalization_comparison
+          python - <<'PY'
+          import json
+          j=json.load(open("2026_2025_personalization_comparison/2026_COMPARATIVE_ROI_AUDIT.json"))
+          assert len(j["original_2026_month_coverage"])==10
+          assert j["selection_horizon_2025"] is True
+          assert j["2026_used_only_for_validation"] is True
+          print('FINAL_2026_RIDER_FORMATION_RESULT',j["primary_2026_full_months_Jan_Sep"])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ura-2026-FINAL-2025-player-rider-formations-JANSEP-OCT-real-revenue
+          path: 2026_2025_personalization_comparison/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 7

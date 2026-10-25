@@ -77,3 +77,5 @@ jobs:
       - name: Delete decrypted archive
         if: always()
         run: rm -f db/keirin.db fixed_inputs/keirin-history.sqlite.gpg
+
+# Re-run after exact zero-hit confidence-bound numerical corner case fix.

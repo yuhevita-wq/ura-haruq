@@ -99,3 +99,5 @@ jobs:
 # Exact MILP profit and coverage selection, no cardinality cap; never deployed.
 
 # Every one of the 66 candidate shapes enters optimizer; no pre-filtered single-type pass/fail.
+
+# CSV decision audit: include extra-training-hits field for nonselected types.

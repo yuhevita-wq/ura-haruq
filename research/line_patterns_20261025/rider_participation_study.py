@@ -178,6 +178,7 @@ def study(ledger_file,outdir):
                 "invested":int(r["invested_yen"]),
                 "paid":int(r["returned_yen"]),
                 "lower_rank_podium":int(lower_any),
+                "winner_rank_has_5to7":int(lower_any),
                 "lower_rank_1st":int(rank[actual[0]]>=5),
                 "lower_rank_2nd":int(rank[actual[1]]>=5),
                 "lower_rank_3rd":int(rank[actual[2]]>=5),

@@ -128,7 +128,8 @@ def select_band(discovery,screen):
              require 2024>=2 hits; keep up to four (zero is permitted).
     No demand that any individual type must exceed 100% ROI.
     """
-    universe=sorted({k for r in discovery for k,n in r["tickets"].items() if n>0})
+    universe=sorted({k for r in discovery for k,n in r["tickets"].items()
+                     if n>0 and k.rsplit("|",1)[-1] in ("12","23","13")})
     train=[]
     for shape in universe:
         m=aggregate(discovery,[shape])
@@ -227,6 +228,7 @@ def evaluate_all(label_dir,year26,out):
               "frozen_2221_unchanged":True,"research_only":True,"purchase_approved":False,
               "no_ai_rank_head_fixing":True,
               "LOW_intervals":list(BANDS),
+              "allowed_decision_relations":["12","23","13"],
               "library_pool_per_band":MAX_LIBRARY,
               "max_portfolio_types_per_band":MAX_TYPES_PER_BAND,
               "minimum_hits_for_research":MIN_DISCOVERY_HITS,

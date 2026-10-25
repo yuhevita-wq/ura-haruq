@@ -90,3 +90,5 @@ jobs:
           rm -f future/races.csv future/entries.csv future/results.csv future/payouts.csv
 
 # Re-run after paired-day bootstrap stake contract correction.
+
+# Existing overlapping source races are audited and evaluated without overwriting entries/results.

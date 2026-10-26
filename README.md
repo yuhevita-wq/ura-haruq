@@ -1,5 +1,27 @@
 # 裏ハルキュー（URA-HARUQ）
 
+## 【正式採用】裏ハルキュー6点方式の参加選別 V2（2026-10-26）
+
+2026年10月26日、ユーザーの明示指示により、**固定の3連単6点ルール（V1）に実力差フィルタを組み込んだV2**を正式採用。
+
+- コード：`ura/frozen_v1.py`（**旧V1と同一コード**）、`ura/participant_v2.py`（その外側の正式参加判定）
+- 予測順位は、実証に使った **独立ウォークフォワード順位モデル**を使うこと（[実装側](https://github.com/yuhevita-wq/keirin-ai-predictor/tree/ura-haruq/independent-train-20261024/ura_haruq_independent)）。本家の古いスコアに置き換えない
+- V1の資格：7車・2-2-2-1・独立スコア差[0,1)・上位3位の同ライン2車を両順・別線の予測5〜7位を3着＝**3連単6点**
+- **新しい参加条件：7車の競走得点（出走表）の最大値－最小値が7.1以下**。欠損したら見送り。
+- 1点100円、該当時は600円。条件未達は0円。
+- 旧追加条件「3着候補の平均競走得点95.8767超」は廃止。級班によるA級排除を回避する
+- `python -m ura.participant_v2 --input racecards_and_independent_ranker.json --out decisions.json` で、保存済みの独立AI順位・出走表ライン・競走得点から本番参加判定を実行する
+- 人が読める出力に `base_tickets`（旧V1候補）と `tickets`（V2の参加対象買い目）を分離。発走前に確認し、履歴は別期間で追跡
+
+**既存の確率校正AI `ura/core.py`・`ura/train.py`・`ura/predict.py` の処理は書き換えない。** あちらは候補確率を列挙する別の研究系統。両者の学習済みモデルや購入条件を黙って混用しない。
+
+既存3,501レースから適用した2024/25/26(1〜9月)の**採用V2のバックテスト**は313/291/209レース、回収率223.16%/212.53%/223.45%。ユーザーが既知の結果で選別を改良したため新たなブラインド検証ではない。発走前44特徴量の監査・取引時点の3連単オッズ照合・未来期間の確認は今後の研究課題。
+
+[正式仕様](https://github.com/yuhevita-wq/keirin-ai-predictor/blob/ura-haruq/independent-train-20261024/ura_haruq_independent/ADOPTED_V2_POLICY_20261026.md) ／ [3,501レースとの再照合・CI成功記録](https://github.com/yuhevita-wq/keirin-ai-predictor/blob/ura-haruq/independent-train-20261024/ura_haruq_independent/ADOPTED_V2_VERIFICATION.json)
+
+---
+
+
 本家ハルキューとは**完全に別のGitHubリポジトリ**です。本家の固定AI、44特徴量、判定条件、買い目、購入金額、Webサイトを変更しません。
 
 ## 研究対象：③ LOWレース × 低評価選手

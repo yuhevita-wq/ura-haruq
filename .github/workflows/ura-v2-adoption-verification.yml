@@ -1,0 +1,36 @@
+name: Verify officially adopted Ura V2 without changing other AI
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/ura-v2-adoption-verification.yml]
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate identical frozen V1 and official V2 tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'b0891724787f3c300a2b58d0d19cc6cf4ff421225ea53c81b94ab3add7194818  ura/frozen_v1.py' | sha256sum -c -
+          python -m unittest discover -s tests -p test_participant_v2.py -v
+          python -m py_compile ura/frozen_v1.py ura/participant_v2.py
+      - name: Save successful adoption checks for the Ura repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '{"policy":"URA_HARU_V2_SKILL_SPREAD_7_1_20261026","frozen_v1_unchanged":true,"unit_tests_passed":true,"participant_entry_point":"python -m ura.participant_v2","original_probability_model_unchanged":true}\n' > /tmp/ura-v2-status.json
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/artifacts/ura_v2_adoption_verified.json" \
+            -f message="Verify officially adopted Ura six-ticket V2 policy" \
+            -f content="$(base64 -w0 /tmp/ura-v2-status.json)" \
+            -f branch="$GITHUB_REF_NAME" > /dev/null

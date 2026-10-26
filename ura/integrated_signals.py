@@ -46,6 +46,18 @@ def evaluate_race(row):
         output["new_shape_status"] = (
             "RESEARCH_CANDIDATE" if shapes["qualified_shapes"] else "NO_RESEARCH_SIGNAL"
         )
+    new_shapes = output["independent_new_shapes"]
+    output["new_shape_suggested_tickets"] = (
+        new_shapes["unique_research_tickets"] if new_shapes else []
+    )
+    output["new_shape_suggested_stake_yen"] = (
+        100 * len(output["new_shape_suggested_tickets"])
+    )
+    output["new_shape_decision"] = (
+        "BET_CANDIDATE" if output["new_shape_suggested_tickets"] else "NO_SIGNAL"
+    )
+    # A candidate is a visible model selection, not a settled profitability
+    # claim or an automatic purchase instruction. The adopted V2 is separate.
     output["official_tickets"] = (
         output["adopted_v2"]["tickets"] if output["adopted_v2"] else []
     )

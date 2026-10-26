@@ -102,6 +102,9 @@ class IndependentFormationTests(unittest.TestCase):
         self.assertEqual(len(new["official_tickets"]), 6)
         self.assertEqual(new["new_shape_status"], "RESEARCH_CANDIDATE")
         self.assertFalse(new["new_shape_purchase_authorized"])
+        self.assertEqual(new["new_shape_decision"], "BET_CANDIDATE")
+        self.assertEqual(new["new_shape_suggested_tickets"], list(FOUR))
+        self.assertEqual(new["new_shape_suggested_stake_yen"], 400)
 
     def test_shaped_only_input_requires_no_v1_ranking(self):
         out = evaluate_race({

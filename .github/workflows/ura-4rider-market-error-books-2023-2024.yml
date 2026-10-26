@@ -1,0 +1,28 @@
+name: Research fetch 2023 and 2024 original complete market books
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/ura-4rider-market-error-books-2023-2024.yml]
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  odds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Download original final market archives and verify
+        run: |
+          set -euo pipefail
+          mkdir -p books
+          for y in 2023 2024; do
+            curl -fL --retry 4 --max-time 300 --connect-timeout 30 -sS "https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/main/data/odds_only/odds_${y}.jsonl.gz" -o "books/odds_${y}.jsonl.gz"
+            gzip -t "books/odds_${y}.jsonl.gz"
+            sha256sum "books/odds_${y}.jsonl.gz" | tee -a books/SHA256SUMS
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ura-4rider-market-original-odds-2023-2024
+          path: books/
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0

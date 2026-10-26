@@ -71,3 +71,48 @@
 4. 学習済み成果物が実際に生成された後、`python -m ura.predict --prediction 元スコアJSON --trained ura_outputs/ura_ai_v1.json --out ura_prediction.json`
 
 **現状の限界**：元の過去学習用特徴量には結果データ由来のオッズ・人気が含まれています。発走前取得時刻との一致が監査されるまでは、学習済みであっても実運用の回収率・期待値を保証できません。
+
+
+---
+
+## 【新規組み込み】独立フォーメーション理論2型（2026-10-26）
+
+**追加コード**：ura/market_shapes_v1.py / ura/integrated_signals.py。
+今回限りの明示許可により、**既存の固定V1・採用V2の予測、6点、参加判定、購入金額は変更せず**、新しい2型の研究候補出力を追加。独立AIの順位入力は不要です。
+
+全7車・全210点の3連単オッズ、レース前の予想並び（例：1-7/5-4/6-2/3）、級班を使用。全オッズの逆数を正規化し、各車の1着市場支持をラインごとに合算。上位3ラインをL1・L2・L3とし、L1先頭=A、番手=a、L3先頭=B、番手=bとします。L2は飛び越します。
+
+| 新理論 | 3連単フォーメーション | 合格条件 | 参考点数 |
+| --- | --- | --- | --- |
+| 二線飛び越しクロス型 | A-B-a / A-B-b / B-A-a / B-A-b | 4点の幾何平均オッズが200倍以上400倍未満 | 4点（100円ずつで400円） |
+| 敵線残り二人型 | A-B-b / B-A-a | A級1・2班かつ正規化した2点の市場支持合計が0.010以上0.025未満 | 2点（100円ずつで200円） |
+
+市場順位は人数順でも競走得点順でもなく、全3連単から求めた1着支持のライン合計順。同点では先頭の市場支持、車番順。予想並びの先頭・番手を使用し、結果や従来V1/V2のスコアで並べ替えません。
+
+### 統合出力の分離
+
+- independent_new_shapes.candidates：2型の成立・不成立、条件値、買い目、オッズ、参考投資金額。
+- independent_new_shapes.overlap_tickets：2型に同時該当した重複車券。unique_research_tickets：重複除去後の一覧。重複購入は自動実行しません。
+- adopted_v2：旧ura/participant_v2.pyの結果をそのまま掲載。official_ticketsとofficial_decisionはV2のみ。
+- 新型はresearch_only=true・purchase_authorized=false。正式V2購入判定とは区別します。
+
+実行：
+
+    python -m ura.integrated_signals --input races.json --out ura_integrated_signals.json
+
+入力例（全210オッズのうち省略した説明用の例で、そのままでは実行不可）：
+
+    {
+      "races": [{
+        "race_id": "sample",
+        "formation": "1-7/5-4/6-2/3",
+        "race_class": "A1/A2",
+        "trifecta_odds": {"1-2-3": 100.0}
+      }]
+    }
+
+実際には全210の異なる3連単組番を省略せず指定します。欠損・不正オッズを許容しません。旧V2の評価も必要な場合、predicted_bikes_by_rank、line_groups_by_bike、score_gap、competition_scores_by_bikeを各レースに追加してください。V2入力がなければ旧V2はNOT_EVALUATED、新型入力がなければ新型はNOT_EVALUATEDです。
+
+### 実証上の留保
+
+2025年下期〜2026年上期の探索は**確定オッズ**で行ったもので、選択バイアスがあります。未見の将来期間・締切前オッズで利益は未実証。新型の自動購入判定は有効化していません。前向き検証では購入判断時点のオッズ・予想並びの保存と結果との分離が必要です。既存Webおよび本家ハルキューは変更していません。

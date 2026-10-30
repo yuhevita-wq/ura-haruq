@@ -1,0 +1,96 @@
+name: Ura textbook formations - ALL 2023 races final-odds replay
+on:
+  push:
+    branches: [research/manual-2023-all-20261030]
+    paths:
+      - .github/workflows/ura-manual-2023-full.yml
+      - ura/replay_manual_2023.py
+      - ura/replay_manual_2023_aggregate.py
+      - tests/test_replay_manual_2023.py
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: ura-manual-2023-all
+  cancel-in-progress: false
+jobs:
+  monthly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        month: ['2023-01','2023-02','2023-03','2023-04','2023-05','2023-06','2023-07','2023-08','2023-09','2023-10','2023-11','2023-12']
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COLLECTOR_PASSPHRASE: ${{ secrets.COLLECTOR_PASSPHRASE }}
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify frozen source and textbook/replay invariants
+        run: |
+          set -euo pipefail
+          python -m pip install -r requirements.txt
+          test "$(git hash-object artifacts/ura_ai_v1.json)" = 5a353643cfe8196ab695521d479237294c3f9b66
+          python -m unittest discover -s tests -q
+      - name: Download pinned full-year score and final-price archives
+        run: |
+          set -euo pipefail
+          mkdir -p replay_inputs db
+          curl --fail --location --retry 3 'https://raw.githubusercontent.com/yuhevita-wq/haruq/research/haruq-manual-2023-full-20261030/research_results/manual_2023_full/41065009874/all_races.jsonl.gz' -o replay_inputs/forecasts_2023.jsonl.gz
+          curl --fail --location --retry 3 'https://raw.githubusercontent.com/yuhevita-wq/keirin-market-analysis-/main/data/odds_only/odds_2023.jsonl.gz' -o replay_inputs/odds_2023.jsonl.gz
+          echo '77f2ac4356d1bbd40267663bbffe7bf878b8580b148d731640ae46688c45791d  replay_inputs/forecasts_2023.jsonl.gz' | sha256sum -c -
+          echo '4bbf3d2736d2a0d70143a1944b12c5f9290248dc5b77e7e85cfce0f375291c06  replay_inputs/odds_2023.jsonl.gz' | sha256sum -c -
+      - name: Restore original verified archive for entry and outcome checks
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTOR_PASSPHRASE"
+          gh release download haruqube-20260321-history-cache-haruq-v1 --repo yuhevita-wq/haruq --pattern keirin-history.sqlite.gpg --pattern PLAINTEXT_SHA256.txt --dir replay_inputs
+          python -c 'import os,sys; sys.stdout.write(os.environ["COLLECTOR_PASSPHRASE"].rstrip("\r\n"))' | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output db/keirin.db --decrypt replay_inputs/keirin-history.sqlite.gpg
+          ( cd db && sha256sum -c ../replay_inputs/PLAINTEXT_SHA256.txt )
+      - name: Replay all monthly races with new textbook formations only
+        run: |
+          set -euo pipefail
+          mkdir -p replay_results/${{ matrix.month }}
+          python -u -m ura.replay_manual_2023 --month '${{ matrix.month }}' --forecasts replay_inputs/forecasts_2023.jsonl.gz --odds replay_inputs/odds_2023.jsonl.gz --db db/keirin.db --out replay_results/${{ matrix.month }} | tee replay_results/${{ matrix.month }}/run.log
+          gzip replay_results/${{ matrix.month }}/races.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ura-manual-2023-${{ matrix.month }}-${{ github.run_id }}
+          path: replay_results/
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Remove decrypted archive
+        if: always()
+        run: rm -f db/keirin.db replay_inputs/keirin-history.sqlite.gpg
+  annual:
+    needs: monthly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ura-manual-2023-*
+          path: monthly_results
+      - name: Aggregate only when all 12 months have accounted for every race
+        run: python -m ura.replay_manual_2023_aggregate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ura-manual-2023-ALL-RACES-${{ github.run_id }}
+          path: annual_results/
+          retention-days: 90
+      - name: Save reproducible simulation result on this research branch
+        run: |
+          mkdir -p research/manual_2023_full/${{ github.run_id }}
+          cp annual_results/* research/manual_2023_full/${{ github.run_id }}/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add research/manual_2023_full/
+          git commit -m 'Save new Ura textbook full-year 2023 replay ${{ github.run_id }} [skip ci]'
+          git push origin HEAD:${{ github.ref_name }}

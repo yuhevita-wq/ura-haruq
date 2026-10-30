@@ -136,6 +136,14 @@ def public_shape(shape,probabilities,odds=None):
     return result
 
 
+def compare_priced_formations(shapes,probabilities,odds):
+    """Shared live/replay selection. No inputs here come from realized results."""
+    evaluated=[(evaluate_set(c['tickets'],probabilities,odds),c) for c in shapes]
+    qualifying=[(m,c) for m,c in evaluated if m['composite_odds']>=3.0 and m['estimated_roi']>1.0]
+    selected=max(qualifying,key=lambda v:(v[0]['estimated_net_yen'],v[0]['probability_mass'],-v[0]['points'])) if qualifying else None
+    return evaluated,qualifying,selected
+
+
 def parse_book(raw,active):
     expected=set(itertools.permutations(active,3));book={}
     for key,value in raw.items():
@@ -219,14 +227,13 @@ def evaluate_race(source,model=None):
     if source.get('odds_kind')!='pre_start_snapshot':
         return {**out,'reason':'FINAL_OR_UNVERIFIED_ODDS_NOT_PURCHASE_TIME_PRICES'}
     # No individual p*odds filter: evaluate each complete shape/union unchanged.
-    evaluated=[(evaluate_set(c['tickets'],probs,odds),c) for c in shapes]
-    qualifying=[(m,c) for m,c in evaluated if m['composite_odds']>=3.0 and m['estimated_roi']>1.0]
+    evaluated,qualifying,best=compare_priced_formations(shapes,probs,odds)
     audit_keys=('race_id','grade','race_class','ranked','model_sha256','model_role','confidence','formation','line_formation','trifecta_odds','trifecta_probabilities','probability_provenance','start_at','prediction_at','lineup_at','odds_observed_at','odds_kind')
     out['decision_inputs_sha256']=hashlib.sha256(json.dumps({k:source.get(k) for k in audit_keys},sort_keys=True,ensure_ascii=False,allow_nan=False).encode()).hexdigest()
     out['price_qualified_count']=len(qualifying)
     out['candidates']=[public_shape(c,probs,odds) for m,c in sorted(evaluated,key=lambda v:(-v[0]['estimated_net_yen'],v[0]['points']))]
     if not qualifying:return {**out,'reason':'NO_WHOLE_FORMATION_PRICE_EDGE'}
-    m,chosen=max(qualifying,key=lambda v:(v[0]['estimated_net_yen'],v[0]['probability_mass'],-v[0]['points']))
+    m,chosen=best
     selected=public_shape(chosen,probs,odds)
     return {**out,'decision':'BET','reason':'WHOLE_FORMATION_PRICE_EDGE',
         'selected':selected,'tickets':selected['tickets'],'points':m['points'],

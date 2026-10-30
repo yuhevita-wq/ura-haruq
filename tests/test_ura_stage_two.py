@@ -1,7 +1,7 @@
 import json
 import unittest
 from pathlib import Path
-from ura.formation_selector import CATALOG, rank_tickets, load_fixed, choose, FIXED_HARUQ_SHA256
+from ura.legacy.formation_selector import CATALOG, rank_tickets, load_fixed, choose, FIXED_HARUQ_SHA256
 
 class TwoStageTests(unittest.TestCase):
     def test_catalog_is_six_frozen_types(self):

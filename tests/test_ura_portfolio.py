@@ -2,8 +2,8 @@ import json
 import unittest
 from pathlib import Path
 
-from ura.formation_portfolio import analyze, combine_types
-from ura.formation_selector import load_fixed, FIXED_HARUQ_SHA256
+from ura.legacy.formation_portfolio import analyze, combine_types
+from ura.legacy.formation_selector import load_fixed, FIXED_HARUQ_SHA256
 
 
 class PortfolioTests(unittest.TestCase):

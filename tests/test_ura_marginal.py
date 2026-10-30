@@ -1,8 +1,8 @@
 import json
 import unittest
 from pathlib import Path
-from ura.formation_marginal import analyze, predict_marginals, marginal_choices, frontier
-from ura.formation_selector import load_fixed, FIXED_HARUQ_SHA256
+from ura.legacy.formation_marginal import analyze, predict_marginals, marginal_choices, frontier
+from ura.legacy.formation_selector import load_fixed, FIXED_HARUQ_SHA256
 
 class MarginalLearningTests(unittest.TestCase):
     @classmethod

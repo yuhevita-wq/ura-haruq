@@ -1,8 +1,8 @@
 import json
 import unittest
 from pathlib import Path
-from ura.formation_v3_predict import research_prediction,bin_rank
-from ura.formation_selector import load_fixed,FIXED_HARUQ_SHA256
+from ura.legacy.formation_v3_predict import research_prediction,bin_rank
+from ura.legacy.formation_selector import load_fixed,FIXED_HARUQ_SHA256
 from ura.core import low_rank_start
 
 class TestV3Predict(unittest.TestCase):

@@ -1,10 +1,10 @@
 """Unit tests for the explicitly adopted 2026-10-26 Ura V2 selector."""
 import unittest
 
-from ura.participant_v2 import (
+from ura.legacy.participant_v2 import (
     BASE_POLICY_ID, MAX_COMPETITION_SCORE_SPREAD, POLICY_ID, decide,
 )
-from ura.frozen_v1 import formation
+from ura.legacy.frozen_v1 import formation
 
 
 class AdoptedParticipationTests(unittest.TestCase):

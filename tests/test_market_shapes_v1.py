@@ -3,9 +3,9 @@ import itertools
 import math
 import unittest
 
-from ura.market_shapes_v1 import CROSS_ID, COUNTER_ID, evaluate
-from ura.integrated_signals import evaluate_race
-from ura.participant_v2 import decide as official_v2
+from ura.legacy.market_shapes_v1 import CROSS_ID, COUNTER_ID, evaluate
+from ura.legacy.integrated_signals import evaluate_race
+from ura.legacy.participant_v2 import decide as official_v2
 
 LINES = "1-7/5-4/6-2/3"
 FOUR = ("1-6-7", "1-6-2", "6-1-7", "6-1-2")

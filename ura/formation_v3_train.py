@@ -11,7 +11,7 @@ import json
 from collections import Counter,defaultdict
 from pathlib import Path
 import numpy as np
-from ura.formation_selector import rank_tickets
+from ura.legacy.formation_selector import rank_tickets
 from ura.core import low_rank_start
 
 PER_YEN=100
